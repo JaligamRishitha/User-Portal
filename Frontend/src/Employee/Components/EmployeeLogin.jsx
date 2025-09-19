@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -21,77 +22,54 @@ const EmployeeLogin = () => {
   });
 
   const [toast, setToast] = useState({ message: null, isError: false });
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  const API_BASE_URL =
+    process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:8000";
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  // 🔹 Forgot Password request
-  const handleForgotPassword = async () => {
-    if (!formData.email) {
-      setToast({ message: "Enter your email to reset password.", isError: true });
-      return;
-    }
-
-    try {
-      const response = await fetch("http://127.0.0.1:8000/users/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setToast({ message: data.message || "Password reset link sent to your email.", isError: false });
-      } else {
-        setToast({ message: data.error || "Failed to send reset link.", isError: true });
-      }
-    } catch (err) {
-      console.error("Forgot password error:", err);
-      setToast({ message: "Server error, please try again.", isError: true });
-    }
   };
 
   // 🔹 Login request
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://127.0.0.1:8000/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const { data } = await axios.post(`${API_BASE_URL}/users/login`, formData);
 
-      const data = await response.json();
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.employeeId,
+          name: data.name,
+          role: data.role,
+          company_email: data.company_email,
+          email: data.email,
+          onboarding_status: data.onboarding_status,
+          is_new_user: data.is_new_user,
+        })
+      );
 
-      if (response.ok) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            id: data.employeeId,
-            name: data.name,
-            role: data.role,
-            email: data.email,
-            isNewUser: data.isNewUser,
-          })
-        );
+      setToast({ message: data.message || "Login successful!", isError: false });
 
-        setToast({ message: data.message || "Login successful!", isError: false });
-
-        setTimeout(() => {
-          if (data.isNewUser) navigate("/new-user-form");
-          else if (data.role === "HR") navigate("/hr-dashboard");
-          else if (data.role === "Manager") navigate("/manager-dashboard");
-          else navigate("/employee-dashboard");
-        }, 1000);
-      } else {
-        setToast({ message: data.error || "Invalid credentials", isError: true });
-      }
+      setTimeout(() => {
+        if (data.is_new_user) {
+          navigate("/change-password");
+        } else if (!data.onboarding_status) {
+          navigate("/new-user-form");
+        } else if (data.role === "HR") {
+          navigate("/hr-dashboard");
+        } else if (data.role === "Manager") {
+          navigate("/manager-dashboard");
+        } else {
+          navigate("/employee-dashboard");
+        }
+      }, 1000);
     } catch (err) {
       console.error("Login error:", err);
-      setToast({ message: "Server error, please try again.", isError: true });
+      setToast({
+        message: err.response?.data?.error || "Invalid credentials",
+        isError: true,
+      });
     }
   };
 
@@ -114,12 +92,18 @@ const EmployeeLogin = () => {
       <div className="login-right">
         <div className="login-container shadow-lg p-4 rounded">
           <div className="text-center mb-4">
-            <img src={CompanyLogo} alt="Company Logo" className="company-logo mb-3" />
+            <img
+              src={CompanyLogo}
+              alt="Company Logo"
+              className="company-logo mb-3"
+            />
             <h2>Login</h2>
           </div>
 
           {toast.message && (
-            <div className={`toast-message ${toast.isError ? "error" : "success"}`}>
+            <div
+              className={`toast-message ${toast.isError ? "error" : "success"}`}
+            >
               <FontAwesomeIcon
                 icon={toast.isError ? faTimesCircle : faCheckCircle}
                 className="me-2"
@@ -165,11 +149,15 @@ const EmployeeLogin = () => {
             </button>
           </form>
 
-          {/* 🔹 Forgot password link */}
+          {/* 🔹 Redirect to ForgotPassword Page */}
           <p
             className="forgot-password text-center mt-3"
-            style={{ color: "blue", cursor: "pointer", textDecoration: "underline" }}
-            onClick={handleForgotPassword}
+            style={{
+              color: "blue",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+            onClick={() => navigate("/forgot-password")}
           >
             Forgot Password?
           </p>

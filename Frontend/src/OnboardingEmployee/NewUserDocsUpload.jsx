@@ -1,202 +1,146 @@
 import React, { useState, useEffect } from "react";
 import { FaUpload, FaCheckCircle } from "react-icons/fa";
-
+import axios from "axios";
 import "./NewUserDocsUpload.css";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
+
 const acceptedFormats = [".pdf", ".doc", ".docx", ".jpg", ".png"];
 
+
+const user = JSON.parse(localStorage.getItem("user") || "{}");
+const employeeId = user.id;  // ✅ employeeId comes from the saved user object
+
+
+
 const sections = {
+
   employeeDocs: {
+
     title: "Employee Documents",
+
     fields: [
-      { name: "resume", label: "Updated Resume", required: false },
-      { name: "offerLetter", label: "Offer Letter", required: false },
-      { name: "compensation", label: "Latest Compensation Letter", required: false },
-      { name: "experience", label: "Experience & Relieving Letter", required: false },
-      { name: "payslips", label: "Latest 3 months Pay Slips", required: false },
-      { name: "form16", label: "Form 16/ Form 12B / Taxable Income Statement", required: false },
+
+      { name: "updated_resume", label: "Updated Resume", required: false },
+
+      { name: "offer_letter", label: "Offer Letter", required: false },
+
+      { name: "latest_compensation_letter", label: "Latest Compensation Letter", required: false },
+
+      { name: "experience_relieving_letter", label: "Experience & Relieving Letter", required: false },
+
+      { name: "latest_3_months_payslips", label: "Latest 3 months Pay Slips", required: false },
+
+      { name: "form16_or_12b_or_taxable_income", label: "Form 16/ Form 12B / Taxable Income Statement", required: false },
+
     ],
+
   },
+
   educationDocs: {
+
     title: "Educational Documents",
+
     fields: [
-      { name: "ssc", label: "SSC Certificate", required: false },
-      { name: "hsc", label: "HSC Certificate", required: false },
-      { name: "hscMark", label: "HSC Marksheet", required: false },
-      { name: "gradMark", label: "Graduation Marksheet", required: false },
-      { name: "latestGrad", label: "Latest Graduation", required: true },
-      { name: "pgMark", label: "Post-Graduation Marksheet", required: false },
-      { name: "pgCert", label: "Post-Graduation Certificate", required: false },
+
+      { name: "ssc_certificate", label: "SSC Certificate", required: false },
+
+      { name: "hsc_certificate", label: "HSC Certificate", required: false },
+
+      { name: "hsc_marksheet", label: "HSC Marksheet", required: false },
+
+      { name: "graduation_marksheet", label: "Graduation Marksheet", required: false },
+
+      { name: "latest_graduation_certificate", label: "Latest Graduation", required: true },
+
+      { name: "postgraduation_marksheet", label: "Post-Graduation Marksheet", required: false },
+
+      { name: "postgraduation_certificate", label: "Post-Graduation Certificate", required: false },
+
     ],
+
   },
+
   identityDocs: {
+
     title: "Identity Proof",
+
     fields: [
+
       { name: "aadhar", label: "Aadhar", required: true },
+
       { name: "pan", label: "PAN", required: true },
+
       { name: "passport", label: "Passport", required: false },
+
     ],
+
   },
+
 };
 
 export default function NewUserDocsUpload() {
   const [files, setFiles] = useState({});
   const [previewUrls, setPreviewUrls] = useState({});
   const [openSection, setOpenSection] = useState(null);
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-    const navigate = useNavigate(); 
+  const [toast, setToast] = useState({ message: null, isError: false });
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-  
   const isFormValid = () => {
     for (const [, section] of Object.entries(sections)) {
       for (const field of section.fields) {
-        if (field.required && !files[field.name]) {
-          return false;
-        }
+        if (field.required && !files[field.name]) return false;
       }
     }
     return true;
   };
 
- 
+  const showToast = (message, isError = false) => {
+    setToast({ message, isError });
+    setTimeout(() => setToast({ message: null, isError: false }), 3000);
+  };
+
   const handleDraft = async () => {
     const formData = new FormData();
+
+     formData.append("employeeId", employeeId);
+     
     Object.keys(files).forEach((key) => {
-      if (files[key] instanceof File) {
-        formData.append(key, files[key]);
-      }
+      if (files[key] instanceof File) formData.append(key, files[key]);
     });
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        alert("Draft saved successfully!");
-      } else {
-        alert("Failed to save draft.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Error while saving draft.");
+      await axios.post("http://127.0.0.1:8000/onboarding/upload", formData);
+      showToast("Draft saved successfully!");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to save draft", true);
     }
   };
 
-
-  // Submit API
- const handleSubmit = async () => {
-  if (!isFormValid()) {
-    alert("Please upload all required documents before submitting!");
-    return;
-  }
-
-  try {
-    for (const [docType, file] of Object.entries(files)) {
-      if (file) {
-        const formData = new FormData();
-        formData.append("employeeId", 1); // replace with actual employeeId from user context/session
-        formData.append("doc_type", docType);
-        formData.append("file", file);
-
-        const response = await fetch("http://127.0.0.1:8000/documents/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const result = await response.json();
-        console.log(result);
-      }
-    }
-
-    alert("All documents submitted successfully!");
-  } catch (error) {
-    console.error(error);
-    alert("Error while submitting documents.");
-  }
-};
-
-
   const handleSubmitAll = async () => {
-  const employeeDetails = JSON.parse(localStorage.getItem("employeeDetails"));
-
-  if (!employeeDetails) {
-    alert("Employee details missing! Please go back and fill the form.");
-    return;
-  }
-
-  if (!isFormValid()) {
-    alert("Please upload all required documents before submitting!");
-    return;
-  }
-
-  const formData = new FormData();
-
-  Object.keys(employeeDetails).forEach((key) => {
-    formData.append(key, employeeDetails[key]);
-  });
-  
-  Object.keys(files).forEach((key) => {
-    if (files[key] instanceof File) {
-      formData.append(key, files[key]);
+    if (!isFormValid()) {
+      showToast("Please upload all required documents before submitting!", true);
+      return;
     }
-  });
 
-  try {
-    const response = await fetch("http://127.0.0.1:8000/documents/upload", {
-      method: "POST",
-      body: formData,
+    setSubmitting(true);
+    const formData = new FormData();
+    formData.append("employeeId", employeeId);
+    Object.keys(files).forEach((key) => {
+      if (files[key] instanceof File) formData.append(key, files[key]);
     });
 
-    if (response.ok) {
-      alert("Employee registered successfully!");
-      localStorage.removeItem("employeeDetails"); 
-
-      navigate("/");
-    } else {
-      alert("Failed to submit details and documents.");
+    try {
+      await axios.post("http://127.0.0.1:8000/onboarding/upload", formData);
+      showToast("Documents submitted successfully!");
+    } catch (err) {
+      console.error(err);
+      showToast("Error while submitting employee documents.", true);
+      setSubmitting(false);
     }
-  } catch (error) {
-    console.error(error);
-    alert("Error while submitting employee registration.");
-  }
-};
+  };
 
-
-  
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch(`http://127.0.0.1:8000/documents/`, {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const fetchedFiles = {};
-          const fetchedPreviews = {};
-
-          Object.keys(data).forEach((field) => {
-            if (data[field]) {
-              fetchedPreviews[field] = data[field];
-              fetchedFiles[field] = { name: data[field].split("/").pop(), url: data[field] };
-            }
-          });
-
-          setFiles(fetchedFiles);
-          setPreviewUrls(fetchedPreviews);
-        }
-      } catch (err) {
-        console.error("Error fetching uploaded docs:", err);
-      }
-    }
-
-    fetchData();
-  }, [API_BASE_URL]);
-
- 
   const handleFileChange = (e, field) => {
     const file = e.target.files[0];
     if (file) {
@@ -205,15 +149,58 @@ export default function NewUserDocsUpload() {
     }
   };
 
-
   const getUploadedCount = (section) =>
     section.fields.filter((f) => files[f.name]).length;
 
+  // ✅ Fetch previously uploaded files
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const { data } = await axios.get(`http://127.0.0.1:8000/onboarding/doc/${employeeId}`, {
+          withCredentials: true,
+        });
+        const fetchedFiles = {};
+        const fetchedPreviews = {};
+        Object.keys(data).forEach((field) => {
+          if (data[field]) {
+            fetchedPreviews[field] = data[field];
+            fetchedFiles[field] = { name: data[field].split("/").pop(), url: data[field] };
+          }
+        });
+        setFiles(fetchedFiles);
+        setPreviewUrls(fetchedPreviews);
+      } catch (err) {
+        console.error("Error fetching uploaded docs:", err);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (submitting) {
+    return (
+      <div className="thank-you-container">
+        <div className="thank-you-box">
+          <div className="spinner"></div>
+          <h2>Thank You for Completing Onboarding Process</h2>
+          <p>We will get back to you soon...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="upload-container">
+      {toast.message && (
+        <div className={`toast-message ${toast.isError ? "error" : "success"}`}>
+          {toast.message}
+        </div>
+      )}
+
       <div className="upload-box">
         <h4>Documents Upload</h4>
-        <h6 id="text"> <span className="required">*</span> marked documents are mandatory to upload</h6>
+        <h6 id="text">
+          <span className="required">*</span> marked documents are mandatory
+        </h6>
 
         {Object.entries(sections).map(([key, section]) => (
           <div key={key} className="section">
@@ -237,8 +224,7 @@ export default function NewUserDocsUpload() {
                     onClick={() => document.getElementById(field.name).click()}
                   >
                     <div className="upload-label">
-                      {field.label}{" "}
-                      {field.required && <span className="required">*</span>}
+                      {field.label} {field.required && <span className="required">*</span>}
                     </div>
 
                     <div className="upload-status">
@@ -259,6 +245,7 @@ export default function NewUserDocsUpload() {
                       accept={acceptedFormats.join(",")}
                       style={{ display: "none" }}
                       onChange={(e) => handleFileChange(e, field.name)}
+                      disabled={submitting}
                     />
 
                     {files[field.name] && (
@@ -283,17 +270,16 @@ export default function NewUserDocsUpload() {
         ))}
 
         <div className="button-group">
-  <button type="button" className="btn back" onClick={() => navigate("/new-user-form")}>
-    ⬅ Back
-  </button>
-  <button type="button" className="btn draft" onClick={handleDraft}>
-    Save Draft
-  </button>
-  <button type="button" className="btn submit" onClick={handleSubmitAll}>
-    Submit All
-  </button>
-</div>
-
+          <button type="button" className="btn back" onClick={() => navigate("/new-user-form")} disabled={submitting}>
+            ⬅ Back
+          </button>
+          <button type="button" className="btn draft" onClick={handleDraft} disabled={submitting}>
+            Save Draft
+          </button>
+          <button type="button" className="btn submit" onClick={handleSubmitAll} disabled={submitting}>
+            Submit All
+          </button>
+        </div>
       </div>
     </div>
   );

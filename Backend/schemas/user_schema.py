@@ -7,28 +7,61 @@ from pydantic import EmailStr
 class UserCreate(SQLModel):
     name: str
     email: str
+    role:str
+    type:str
    
+class UsercreateResponse(SQLModel):
+    name:str
+    email:str
 
 class UserResponse(SQLModel):
     employeeId: int
     name: str
     role: str
+    company_email: str
     onboarding_status: bool
     message: Optional[str] = None
+    access_token: Optional[str] = None
+
+class UseronboardingResponse(SQLModel):
+    employeeId: int
+    name: str
+    role: str
+    email: str
+    type:str
+    onboarding_status: bool
+    
+    
     access_token: Optional[str] = None
 
 class UserLogin(SQLModel):
     email: str
     password: str
-  
+    
 
-class ResetPasswordRequest(SQLModel):
-    email: EmailStr
-    current_password: str
+class ResetOnboardingPasswordRequest(SQLModel):
+    employee_id: int
     new_password: str
 
 class ForgotPasswordRequest(SQLModel):
     email: EmailStr
+
+class ResetPasswordRequest(SQLModel):
+    email: EmailStr
+    currentPassword: str
+    new_password: str
+
+class ResetPasswordResponse(SQLModel):
+    status: str
+    message: str
+
+class VerifyOtpRequest(SQLModel):
+    email: EmailStr
+    otp: str
+
+class ChangePasswordRequest(SQLModel):
+    email: EmailStr
+    new_password: str
 
 class Employee(SQLModel):
     employeeId: int
@@ -69,3 +102,15 @@ class EmployeeOnboardingResponse(SQLModel):
     status: str
     message: str
     employee_id: int
+
+class HrApproveRequest(SQLModel):
+    employee_id: int
+
+class UserHrAccept(SQLModel):
+    employee_id: int
+    o_status: bool
+    message: str
+
+
+class ApproveDocsRequest(SQLModel):
+    employeeId: int

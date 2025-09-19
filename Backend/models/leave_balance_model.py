@@ -1,5 +1,6 @@
 # app/models/leave_balance_model.py
 from sqlmodel import SQLModel, Field
+from sqlalchemy.orm import relationship
 from typing import Optional
 from datetime import datetime
 
@@ -12,3 +13,4 @@ class LeaveBalance(SQLModel, table=True):
     paid_leaves: int = Field(default=0)
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = Field(default_factory=datetime.now)
+    employee = relationship("User", back_populates="leave_balance")

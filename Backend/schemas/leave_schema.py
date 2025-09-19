@@ -3,12 +3,14 @@ from sqlmodel import SQLModel
 from typing import Optional
 from datetime import date, datetime
 
+
 class LeaveCreate(SQLModel):
     employee_id: int
     leave_type: str
     reason: Optional[str]
     start_date: date
     end_date: date
+
 
 class LeaveResponse(SQLModel):
     id: int
@@ -19,10 +21,11 @@ class LeaveResponse(SQLModel):
     end_date: date
     no_of_days: int
     status: str
-    created_at: datetime
-    updated_at: datetime
     manager_status: str
     hr_status: str
+    
+    
+    
 
 class LeaveApprovalCreate(SQLModel):
     leave_id: int
