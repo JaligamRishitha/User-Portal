@@ -7,14 +7,24 @@ export default function Profile() {
   const [employee, setEmployee] = useState(null);
   const navigate = useNavigate();
 
-   useEffect(() => {
+  useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
+    console.log("User from localStorage:", user);
+
+    const employeeId = user.id;
+    console.log("Employee ID:", employeeId);
+
+    if (!employeeId) return;
 
     axios
-      .get(`http://localhost:8080/api/employees/${user.employee_id}`)
-      .then((res) => setEmployee(res.data))
+      .get(`http://127.0.0.1:8000/users/${employeeId}`)
+      .then((res) => {
+        console.log("API Response:", res.data);
+        setEmployee(res.data);
+      })
       .catch((err) => console.error("Error fetching employee:", err));
   }, []);
+
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -41,8 +51,8 @@ export default function Profile() {
           <p><span>Date of Joining:</span> {employee.dateOfJoining}</p>
           <p><span>Location:</span> {employee.location}</p>
 
-          <p><span>Assigned Managers:</span> {employee.assignedManagers?.join(", ")}</p>
-          <p><span>Assigned HRs:</span> {employee.assignedHRs?.join(", ")}</p>
+          <p><span>Assigned Managers:</span> {employee.managers?.join(", ")}</p>
+          <p><span>Assigned HRs:</span> {employee.hrs?.join(", ")}</p>
         </div>
 
         <button className="logout-btn" onClick={handleLogout}>

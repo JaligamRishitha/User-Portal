@@ -8,11 +8,14 @@ from auth import get_current_user, create_access_token, verify_password, role_re
 from database import get_session
 from sqlalchemy.sql import text
 from models.employee_master_model import EmployeeMaster
+from models.employee_details_model import EmployeeDetails, Location
+from models.employee_assignment_model import EmployeeHR, EmployeeManager
 from schemas.employee_master_schema import EmployeeMasterCreate, EmployeeMasterResponse
 import logging
 from utils.hash_utils import hash_password
 import random
 from typing import Union
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -42,9 +45,9 @@ async def hr_accept(data: HrApproveRequest, session: Session = Depends(get_sessi
 
 
 @router.post("/login", response_model=Union[UserResponse, UseronboardingResponse])
-async def login(user: UserLogin, session: Session = Depends(get_session)):
-    email = user.email.strip().lower()
-    password = user.password.strip()
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    email = form_data.username.strip().lower()
+    password = form_data.password.strip()
 
     db_user = session.exec(select(User).where(User.company_email == email)).first()
 
@@ -421,4 +424,67 @@ async def update_employee_details(
             detail=f"Internal server error: {str(e)}"
         )
 
+#changed
+@router.get("/{employee_id}")
+def get_employee_profile(employee_id: int, session: Session = Depends(get_session)):
+    # employee core info
+    employee = session.exec(select(User).where(User.id == employee_id)).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
     
+    # managers and HRs from EmployeeMaster
+    master = session.exec(select(EmployeeMaster).where(EmployeeMaster.emp_id == employee_id)).first()
+    managers = []
+    hrs = []
+
+    if master:
+        # managers from master table
+        for mid in [master.manager1_id, master.manager2_id, master.manager3_id]:
+            if mid:
+                mgr = session.exec(select(User).where(User.id == mid)).first()
+                if mgr:
+                    managers.append(mgr.name)
+        # HRs from master table
+        for hid in [master.hr1_id, master.hr2_id]:
+            if hid:
+                hr = session.exec(select(User).where(User.id == hid)).first()
+                if hr:
+                    hrs.append(hr.name)
+
+    # extra managers from EmployeeManager table
+    extra_managers = session.exec(select(EmployeeManager).where(EmployeeManager.employee_id == employee_id)).all()
+    for m in extra_managers:
+        mgr = session.exec(select(User).where(User.id == m.manager_id)).first()
+        if mgr and mgr.name not in managers:
+            managers.append(mgr.name)
+
+    # extra HRs from EmployeeHR table
+    extra_hrs = session.exec(select(EmployeeHR).where(EmployeeHR.employee_id == employee_id)).all()
+    for h in extra_hrs:
+        hr = session.exec(select(User).where(User.id == h.hr_id)).first()
+        if hr and hr.name not in hrs:
+            hrs.append(hr.name)
+
+    details = session.exec(select(EmployeeDetails).where(EmployeeDetails.employee_id == employee_id)).first()
+
+    location_name = None
+    if employee.location_id:
+        location = session.exec(select(Location).where(Location.id == employee.location_id)).first()
+        if location:
+            location_name = location.name
+
+    # full profile
+    return {
+            "id": employee.id,
+            "name": employee.name,
+            "email": employee.email,
+            "company_email": employee.company_email,
+            "role": employee.role,
+            "onboarding_status": employee.o_status,
+            "managers": managers,
+            "hrs": hrs,
+            "employmentType": details.employment_type if details else None,
+            "contactNumber": details.contact_no if details else None,
+            "dateOfJoining": details.doj if details else None,
+            "location": location_name
+        }
