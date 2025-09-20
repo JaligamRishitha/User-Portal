@@ -4,9 +4,10 @@ from database import get_session
 from schemas.attendance_schema import AttendanceCreate, AttendanceResponse
 from typing import Dict, List, Optional
 from datetime import date, datetime, timedelta
-from auth import get_current_user
+from auth import get_current_user, role_required
 from models.user_model import User
 from models.attendance_model import Attendance
+from models.employee_assignment_model import EmployeeManager, EmployeeHR
 from sqlalchemy import func
 from datetime import date
 
@@ -157,6 +158,16 @@ async def get_assigned_hr_employees_summary(
             month_start = date(1900, 1, 1)
             month_end = datetime.now().date() + timedelta(days=1)
 
+        employee_ids = session.exec(
+            select(EmployeeHR.employee_id).where(EmployeeHR.hr_id == current_user.id)
+        ).all()
+
+        # flatten list in case it's a list of tuples
+        employee_ids = [e[0] if isinstance(e, tuple) else e for e in employee_ids]
+
+        if not employee_ids:
+            return []
+
         query = text("""
                     SELECT 
                         u.id AS employee_id,
@@ -166,13 +177,11 @@ async def get_assigned_hr_employees_summary(
                     COUNT(*) FILTER (WHERE a.action='WFH') AS wfh,
                     COUNT(*) FILTER (WHERE a.action='Leave') AS leave
                     FROM employees u
-                    JOIN employee_master em
-                        ON em.emp_id = u.id
-                        AND (:hr_id = em.hr1_id OR :hr_id = em.hr2_id)
                     LEFT JOIN attendance a 
                         ON u.id = a.employee_id
                         AND a.date >= :month_start 
                         AND a.date < :month_end
+                    WHERE u.id = ANY(:employee_ids)
                     GROUP BY u.id, u.name, u.email
                     ORDER BY u.name
                 """)
@@ -182,7 +191,7 @@ async def get_assigned_hr_employees_summary(
             {
                 "month_start": month_start,
                 "month_end": month_end,
-                "hr_id": current_user.id
+                "employee_ids": employee_ids
             }
         ).all()
 
@@ -211,7 +220,7 @@ async def get_assigned_mgr_employees_summary(
     month: int = None,
     year: int = None,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = role_required('Manager')
 ):
     try:
         if month and year:
@@ -224,6 +233,17 @@ async def get_assigned_mgr_employees_summary(
             month_start = date(1900, 1, 1)
             month_end = datetime.now().date() + timedelta(days=1)
 
+        employee_ids = session.exec(
+            select(EmployeeManager.employee_id).where(EmployeeManager.manager_id == current_user.id)
+        ).all()
+
+        # flatten list in case it's a list of tuples
+        employee_ids = [e[0] if isinstance(e, tuple) else e for e in employee_ids]
+
+        if not employee_ids:
+            return []
+
+
         query = text("""
                     SELECT 
                         u.id AS employee_id,
@@ -233,13 +253,11 @@ async def get_assigned_mgr_employees_summary(
                     COUNT(*) FILTER (WHERE a.action='WFH') AS wfh,
                     COUNT(*) FILTER (WHERE a.action='Leave') AS leave
                     FROM employees u
-                    JOIN employee_master em
-                        ON em.emp_id = u.id
-                        AND (:mgr_id = em.manager1_id OR :mgr_id = em.manager2_id OR :mgr_id = em.manager3_id)
                     LEFT JOIN attendance a 
                         ON u.id = a.employee_id
                         AND a.date >= :month_start 
                         AND a.date < :month_end
+                    WHERE u.id = ANY(:employee_ids)
                     GROUP BY u.id, u.name, u.email
                     ORDER BY u.name
                 """)
@@ -249,7 +267,7 @@ async def get_assigned_mgr_employees_summary(
             {
                 "month_start": month_start,
                 "month_end": month_end,
-                "mgr_id": current_user.id
+                "employee_ids": employee_ids
             }
         ).all()
 

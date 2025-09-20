@@ -33,7 +33,16 @@ const EmployeeLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post(`${API_BASE_URL}/users/login`, formData);
+      //changed
+      const oauthData = new URLSearchParams();
+      oauthData.append("username", formData.email); 
+      oauthData.append("password", formData.password);
+
+      const { data } = await axios.post(`${API_BASE_URL}/users/login`, oauthData, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
 
       localStorage.setItem("token", data.access_token);
       localStorage.setItem(

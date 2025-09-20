@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; 
+import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Logo from "../../assets/Nxzen-logo.jpg";
 import ManagerEmployees from "./ManagerEmployees";
@@ -9,6 +9,8 @@ import ManagerExpenseApproval from "./ManagerExpenseApproval";
 import UpdatePassword from "../../Employee/Components/UpdatePassword";
 import ManagerEmployeeAttendence from "./ManagerEmployeeAttendence";
 import ManagerAttendence from "./ManagerAttendance";
+import Profile from "../../Employee/Components/Profile";
+
 import {
   faArrowLeft,
   faArrowRight,
@@ -39,25 +41,27 @@ export default function ManagerDashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-   const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
-    
+
     const storedUser = localStorage.getItem("username");
     if (storedUser) {
       setUsername(storedUser);
     }
   }, []);
 
- const menuItems = [
-  { name: "Employees Attendance", icon: faUserCheck, path: "employees-attendance" },
-  { name: "Employees", icon: faUserFriends, path: "employees" },
-  { name: "Add Attendence", icon: faCalendarAlt, path: "add-attendance" },
-  { name: "Apply Leave", icon: faPaperPlane, path: "apply-leave" },
-  { name: "Leave Management", icon: faCalendarCheck, path: "leave-manage" },
-   { name: "Expense Management", icon: faCoins, path: "expense-manage" },
-  { name: "Change Password", icon: faKey, path: "change-password" },
-];
+  const menuItems = [
+    { name: "Employees Attendance", icon: faUserCheck, path: "employees-attendance" },
+    { name: "Employees", icon: faUserFriends, path: "employees" },
+    { name: "Add Attendence", icon: faCalendarAlt, path: "add-attendance" },
+    { name: "Apply Leave", icon: faPaperPlane, path: "apply-leave" },
+    { name: "Leave Management", icon: faCalendarCheck, path: "leave-manage" },
+    { name: "Expense Management", icon: faCoins, path: "expense-manage" },
+    { name: "Change Password", icon: faKey, path: "change-password" },
+    { name: "Profile", icon: faCircleUser, path: "profile" }
+
+  ];
 
 
   return (
@@ -68,17 +72,15 @@ export default function ManagerDashboard() {
           <img src={Logo} alt="Company Logo" className="logo-img" />
           <h2 className="logo-text">Manager Dashboard</h2>
         </div>
-          <div className="profile"  style={{
-                display: "flex",
-                alignItems: "center",  
-                gap: "8px",
-                height: "100%",   
-              }}>
-                   <FontAwesomeIcon icon={faCircleUser} size="2x" />
-                     <span>
-                    {username || "Guest"}
-                    </span>
-                </div>
+        <div
+          className="profile"
+          style={{ display: "flex", alignItems: "center", gap: "8px", height: "100%" }}
+          onClick={() => navigate("/manager-dashboard/profile")}
+        >
+          <FontAwesomeIcon icon={faCircleUser} size="2x" />
+          <span>{username || "Manager"}</span>
+        </div>
+
       </header>
 
       <div className="main">
@@ -96,7 +98,7 @@ export default function ManagerDashboard() {
             {menuItems.map((item, idx) => (
               <div key={idx} className="menu-item">
                 <Link
-                 to={`/manager-dashboard/${item.path}`}
+                  to={`/manager-dashboard/${item.path}`}
                   className="menu-link"
                   onClick={() => window.scrollTo(0, 0)}
                 >
@@ -111,16 +113,17 @@ export default function ManagerDashboard() {
 
         {/* Content Area */}
         <main className="content">
-         <Routes>
-    <Route index element={<h3>Welcome to Manager Dashboard</h3>} />
-    <Route path="add-attendance" element={<ManagerAttendence />} />
-    <Route path="employees-attendance" element={<ManagerEmployeeAttendence />} />
-    <Route path="employees" element={<ManagerEmployees />} />
-    <Route path="apply-leave" element={<ManagerApplyLeave />} />
-    <Route path="leave-manage" element={<ManagerLeaveManagement />} />
-    <Route path="expense-manage" element={<ManagerExpenseApproval />} />
-    <Route path="change-password" element={<UpdatePassword />} /> 
-  </Routes>
+          <Routes>
+            <Route index element={<h3>Welcome to Manager Dashboard</h3>} />
+            <Route path="add-attendance" element={<ManagerAttendence />} />
+            <Route path="employees-attendance" element={<ManagerEmployeeAttendence />} />
+            <Route path="employees" element={<ManagerEmployees />} />
+            <Route path="apply-leave" element={<ManagerApplyLeave />} />
+            <Route path="leave-manage" element={<ManagerLeaveManagement />} />
+            <Route path="expense-manage" element={<ManagerExpenseApproval />} />
+            <Route path="change-password" element={<UpdatePassword />} />
+            <Route path="profile" element={<Profile />} />
+          </Routes>
         </main>
       </div>
     </div>

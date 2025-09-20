@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "../../Manager/Styles/ManagerExpenseApproval.css";
@@ -392,4 +391,3 @@ export default function ManagerExpenseApproval() {
     </div>
   );
 }
-

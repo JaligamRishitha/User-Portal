@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; 
+import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Logo from "../../assets/Nxzen-logo.jpg";
 import CreateEmployee from "./CreateEmployee";
@@ -7,6 +7,8 @@ import EmployeeForm from "./EmployeeForm";
 import OnboardingDocs from "./OnboardingDocs";
 import LeaveManagement from "./LeaveManagement";
 import UpdatePassword from "../../Employee/Components/UpdatePassword";
+import Profile from "../../Employee/Components/Profile";
+
 
 import { Link, Routes, Route, useNavigate } from "react-router-dom";
 import {
@@ -43,10 +45,10 @@ export default function Dashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-   const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
-    
+
     const storedUser = localStorage.getItem("username");
     if (storedUser) {
       setUsername(storedUser);
@@ -54,38 +56,38 @@ export default function Dashboard() {
   }, []);
 
 
- const menuItems = [
-  { name: "Create Employee", icon: faUser, path: "create-employee" },
-  { name: "Employees Attendance", icon: faCalendarAlt , path: "employee-attendance" },
-  { name: "Employees Form", icon: faReceipt, path: "employees-form" },
-  { name: "Onboarded Employees", icon: faUpload, path: "onboard-employees" },
-  { name: "Documents Collection", icon: faFileAlt , path: "collect-docs" },
-  { name: "Leave Management", icon: faPaperPlane, path: "leave-manage" },
-  { name: "Expense Management", icon: faCoins, path: "expense-approval" },
-  { name: "Change Password", icon: faKey, path: "change-password" },
-  { name: "Assign Leave & Holidays", icon: faCalendarAlt, path: "AssignLeaveHolidays" },
-];
+  const menuItems = [
+    { name: "Create Employee", icon: faUser, path: "create-employee" },
+    { name: "Employees Attendance", icon: faCalendarAlt, path: "employee-attendance" },
+    { name: "Employees Form", icon: faReceipt, path: "employees-form" },
+    { name: "Onboarded Employees", icon: faUpload, path: "onboard-employees" },
+    { name: "Documents Collection", icon: faFileAlt, path: "collect-docs" },
+    { name: "Leave Management", icon: faPaperPlane, path: "leave-manage" },
+    { name: "Expense Management", icon: faCoins, path: "expense-approval" },
+    { name: "Change Password", icon: faKey, path: "change-password" },
+    { name: "Assign Leave & Holidays", icon: faCalendarAlt, path: "AssignLeaveHolidays" },
+    { name: "Profile", icon: faCircleUser, path: "profile" }
+
+  ];
 
 
   return (
     <div className="dashboard">
-      
+
       <header className="header">
         <div className="logo" onClick={() => navigate("/")}>
           <img src={Logo} alt="Company Logo" className="logo-img" />
           <h2 className="logo-text">HR Dashboard</h2>
         </div>
-         <div className="profile"  style={{
-                        display: "flex",
-                        alignItems: "center",  
-                        gap: "8px",
-                        height: "100%",   
-                      }}>
-                           <FontAwesomeIcon icon={faCircleUser} size="2x" />
-                             <span>
-                            {username || "Guest"}
-                            </span>
-                        </div>
+        <div
+          className="profile"
+          style={{ display: "flex", alignItems: "center", gap: "8px", height: "100%" }}
+          onClick={() => navigate("/hr-dashboard/profile")}
+        >
+          <FontAwesomeIcon icon={faCircleUser} size="2x" />
+          <span>{username || "HR"}</span>
+        </div>
+
       </header>
 
       <div className="main">
@@ -117,19 +119,20 @@ export default function Dashboard() {
         {/* Content Area */}
         <main className="content">
           <Routes>
-    <Route index element={<h3>Welcome to HR Dashboard</h3>} />
-    <Route path="create-employee" element={<CreateEmployee />} />
-    <Route path="employee-attendance" element={<Employees />} />
-    <Route path="employees-form" element={<EmployeeForm />} />
-    <Route path="onboard-employees" element={<OnboardingDocs />} />
-    <Route path="collect-docs" element={<DocumentCollection />} />
-    <Route path="leave-manage" element={<LeaveManagement />} />
-    <Route path="expense-approval" element={<HRExpenseApproval />} /> 
-    <Route path="change-password" element={<UpdatePassword/>}/>
-    <Route path="AssignLeaveHolidays" element={<AssignLeaveHolidays/>}/>
+            <Route index element={<h3>Welcome to HR Dashboard</h3>} />
+            <Route path="create-employee" element={<CreateEmployee />} />
+            <Route path="employee-attendance" element={<Employees />} />
+            <Route path="employees-form" element={<EmployeeForm />} />
+            <Route path="onboard-employees" element={<OnboardingDocs />} />
+            <Route path="collect-docs" element={<DocumentCollection />} />
+            <Route path="leave-manage" element={<LeaveManagement />} />
+            <Route path="expense-approval" element={<HRExpenseApproval />} />
+            <Route path="change-password" element={<UpdatePassword />} />
+            <Route path="AssignLeaveHolidays" element={<AssignLeaveHolidays />} />
+            <Route path="profile" element={<Profile />} />
 
-    </Routes>
-    
+          </Routes>
+
         </main>
       </div>
     </div>

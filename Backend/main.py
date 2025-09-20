@@ -5,6 +5,7 @@ from routes import user_routes, document_routes,locations_routes, attendance_rou
 from middleware.cors import add_cors_middleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -29,7 +30,11 @@ async def lifespan(app: FastAPI):
     create_tables_database()
     yield
 
+
 app = FastAPI(lifespan=lifespan)
+
+#changed
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 add_cors_middleware(app)
 
@@ -40,5 +45,4 @@ app.include_router(leave_routes.router)
 app.include_router(onboarding_routes.router)
 app.include_router(locations_routes.router)
 app.include_router(calendar_routes.router)
-
 app.include_router(expenses_routes.router)
