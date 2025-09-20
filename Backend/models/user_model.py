@@ -15,7 +15,9 @@ class User(SQLModel, table=True):
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
     reset_otp: Optional[str] = Field(default=None, max_length=6)
     company_email:Optional[str] = Field(max_length=100)
-   
+    login_status: Optional[bool] = Field(default=False)
+    location_id: Optional[int] = Field(default=None, foreign_key="locations.id")
+    
 
     
    

@@ -5,20 +5,14 @@ import { useNavigate } from "react-router-dom";
 
 export default function NewUserDetails() {
   const navigate = useNavigate();
-  
-
-
-const user = JSON.parse(localStorage.getItem("user") || "{}");
-const employeeId = user.id;
-const email=user.email;
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [employee, setEmployee] = useState({
-    employee_id:employeeId,
+    employee_id: "",
     full_name: "",
-    personal_email: email,
+    personal_email: "",
     dob: "",
     contact_no: "",
-   
     address: "",
     graduation_year: "",
     work_experience_years: "",
@@ -28,25 +22,58 @@ const email=user.email;
     gender: "",
   });
 
-  const [toast, setToast] = useState({ message: null, isError: false });
+  useEffect(() => {
+    if (user?.email && !user.onboarding_status && user.login_status) {
+      setEmployee((prev) => ({
+        ...prev,
+        personal_email: user.email,
+      }));
+    }
+  }, [user]);
 
-  // ✅ Load saved form data if exists
-  
+  const [toast, setToast] = useState({ message: null, isError: false });
+  const [phoneError, setPhoneError] = useState("");
+  const [emergencyError, setEmergencyError] = useState("");
+
+  const showToast = (message, isError = false) => {
+    setToast({ message, isError });
+    setTimeout(() => setToast({ message: null, isError: false }), 3000);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setEmployee((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Show toast for 3 seconds
-  const showToast = (message, isError = false) => {
-    setToast({ message, isError });
-    setTimeout(() => setToast({ message: null, isError: false }), 3000);
+  const handlePhoneChange = (e) => {
+    const { name, value } = e.target;
+
+    setEmployee((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "contact_no") {
+      if (value && value === employee.emergency_contact_number) {
+        setPhoneError("Contact number and Emergency contact number cannot be the same");
+      } else {
+        setPhoneError("");
+      }
+    }
+
+    if (name === "emergency_contact_number") {
+      if (value && value === employee.contact_no) {
+        setEmergencyError("Emergency contact number cannot be the same as contact number");
+      } else {
+        setEmergencyError("");
+      }
+    }
   };
 
   const handleSaveDraft = async () => {
+    if (employee.contact_no === employee.emergency_contact_number) {
+      showToast("Contact number and Emergency contact number cannot be the same", true);
+      return;
+    }
     try {
-      await axios.post("http://127.0.0.1:8000/onboarding/details", employee);
+      await axios.post("http://127.0.0.1:8000/users/onboarding/details", employee);
       showToast("Draft saved successfully!");
     } catch (err) {
       console.error(err);
@@ -55,12 +82,12 @@ const email=user.email;
   };
 
   const handleGoToDocs = async () => {
+    if (employee.contact_no === employee.emergency_contact_number) {
+      showToast("Contact number and Emergency contact number cannot be the same", true);
+      return;
+    }
     try {
-      console.log(user)
-      console.log(employee)
-      
-      const res = await axios.post("http://127.0.0.1:8000/onboarding/details", employee);
-
+      const res = await axios.post("http://127.0.0.1:8000/users/onboarding/details", employee);
       localStorage.setItem("employeeDetails", JSON.stringify(res.data));
       showToast("Employee details submitted successfully!");
       navigate("/new-user-form/docs");
@@ -94,10 +121,10 @@ const email=user.email;
                 required
               />
             </div>
-             <div>
-              <label>email</label>
+            <div>
+              <label>Email</label>
               <input
-                type="text"
+                type="email"
                 name="personal_email"
                 value={employee.personal_email}
                 onChange={handleChange}
@@ -105,7 +132,7 @@ const email=user.email;
                 required
               />
             </div>
-            
+
             <div>
               <label>Date Of Birth</label>
               <input
@@ -116,16 +143,24 @@ const email=user.email;
                 required
               />
             </div>
+
+            {/* Contact Number */}
             <div>
-              <label>Phone Number</label>
-              <input
-                type="text"
-                name="contact_no"
-                value={employee.contact_no}
-                onChange={handleChange}
-                required
-              />
+              <label>Contact Number</label>
+              <div style={{ display: "flex", alignItems: "center" }}>
+               
+                <input
+                  type="number"
+                  name="contact_no"
+                  value={employee.contact_no}
+                  onChange={handlePhoneChange}
+                  required
+                  style={{ flex: 1 }}
+                />
+              </div>
+              {phoneError && <small style={{ color: "red" }}>{phoneError}</small>}
             </div>
+
             <div>
               <label>Gender</label>
               <select
@@ -135,13 +170,13 @@ const email=user.email;
                 onChange={handleChange}
                 required
               >
-                <option value="">--  Gender --</option>
+                <option value="">-- Gender --</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
                 <option value="Other">Other</option>
               </select>
             </div>
-            
+
             <div>
               <label>Latest Graduation Year</label>
               <input
@@ -161,6 +196,8 @@ const email=user.email;
                 onChange={handleChange}
               />
             </div>
+
+            {/* Emergency Contact */}
             <div className="form-grid full-width">
               <div>
                 <label>Emergency Contact Name</label>
@@ -173,14 +210,17 @@ const email=user.email;
                 />
               </div>
               <div>
-                <label>Contact Number</label>
+                <label>Emergency Contact Number</label>
                 <input
                   type="number"
                   name="emergency_contact_number"
                   value={employee.emergency_contact_number}
-                  onChange={handleChange}
+                  onChange={handlePhoneChange}
                   required
                 />
+                {emergencyError && (
+                  <small style={{ color: "red" }}>{emergencyError}</small>
+                )}
               </div>
               <div>
                 <label>Relationship</label>
@@ -193,6 +233,7 @@ const email=user.email;
                 />
               </div>
             </div>
+
             <div className="full-width">
               <label>Address</label>
               <textarea

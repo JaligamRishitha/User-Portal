@@ -22,6 +22,8 @@ class UserResponse(SQLModel):
     onboarding_status: bool
     message: Optional[str] = None
     access_token: Optional[str] = None
+    login_status: Optional[bool] = None
+    type: Optional[str] = None
 
 class UseronboardingResponse(SQLModel):
     employeeId: int
@@ -30,6 +32,7 @@ class UseronboardingResponse(SQLModel):
     email: str
     type:str
     onboarding_status: bool
+    login_status: bool
     
     
     access_token: Optional[str] = None

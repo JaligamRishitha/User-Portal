@@ -32,7 +32,7 @@ const ForgetPassword = () => {
     try {
       const { data } = await axios.post(`${API_BASE_URL}/users/verify_otp`, {
         email,
-        otp: resetCode,
+        code: resetCode,
       });
       setMessage(data.message || "Code verified successfully!");
       setIsError(false);

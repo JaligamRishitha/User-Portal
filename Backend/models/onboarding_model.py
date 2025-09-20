@@ -10,6 +10,7 @@ class candidate(SQLModel, table=True):
     password: Optional[str]
     role: Optional[str] = Field(max_length=100)
     o_status :Optional[bool]=Field(default=False)
+    login_status :Optional[bool]=Field(default=False)
 
 class onboard_emp_doc(SQLModel, table=True):
     __tablename__ = "onboarding_emp_docs"

@@ -62,6 +62,9 @@ async def login(user: UserLogin, session: Session = Depends(get_session)):
             company_email=db_user.company_email,
             access_token=access_token,
             onboarding_status=db_user.o_status,
+            login_status=db_user.login_status,
+            type=db_user.role,
+            location_id=db_user.location_id,
             message=f"Welcome, {db_user.name}!"
         )
 
@@ -81,6 +84,7 @@ async def login(user: UserLogin, session: Session = Depends(get_session)):
             name= onboarding_user.name,
             email= onboarding_user.email,
             onboarding_status= onboarding_user.o_status,
+            login_status= onboarding_user.login_status,
             role=onboarding_user.role,
             access_token=access_token,
             type=onboarding_user.role,
@@ -104,7 +108,7 @@ async def reset_onboarding_password(
     hashed_pwd = hash_password(req.new_password)
 
     onboarding_user.password = hashed_pwd
-   
+    onboarding_user.login_status = True
     session.commit()
    
     return {"status": "success", "message": "Password set successfully. Please login again."}

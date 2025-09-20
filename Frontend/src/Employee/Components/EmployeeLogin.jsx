@@ -34,36 +34,34 @@ const EmployeeLogin = () => {
     e.preventDefault();
     try {
       const { data } = await axios.post(`${API_BASE_URL}/users/login`, formData);
+      
 
       localStorage.setItem("token", data.access_token);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: data.employeeId,
-          name: data.name,
-          role: data.role,
-          company_email: data.company_email,
-          email: data.email,
-          onboarding_status: data.onboarding_status,
-          is_new_user: data.is_new_user,
-        })
-      );
+ // inside handleSubmit success:
+localStorage.setItem(
+  "user",
+  JSON.stringify({
+    id: data.employeeId,
+    name: data.name,
+    role: data.role,
+    email: data.email,
+    onboarding_status: data.onboarding_status,
+    login_status: data.login_status,   // ✅ Add login status flag
+  })
+);
 
-      setToast({ message: data.message || "Login successful!", isError: false });
+setTimeout(() => {
+  if (!data.onboarding_status) {
+    // onboarding not done → must go to change password first
+    navigate("/change-password");
+  } else {
+    // onboarding done → dashboards
+    if (data.role === "HR") navigate("/hr-dashboard");
+    else if (data.role === "Manager") navigate("/manager-dashboard");
+    else navigate("/employee-dashboard");
+  }
+}, 1000);
 
-      setTimeout(() => {
-        if (data.is_new_user) {
-          navigate("/change-password");
-        } else if (!data.onboarding_status) {
-          navigate("/new-user-form");
-        } else if (data.role === "HR") {
-          navigate("/hr-dashboard");
-        } else if (data.role === "Manager") {
-          navigate("/manager-dashboard");
-        } else {
-          navigate("/employee-dashboard");
-        }
-      }, 1000);
     } catch (err) {
       console.error("Login error:", err);
       setToast({
