@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ukpn-postgres
+    environment:
+      POSTGRES_USER: ukpn_user
+      POSTGRES_PASSWORD: ukpn_password
+      POSTGRES_DB: ukpn_portal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    networks:
+      - ukpn-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ukpn_user -d ukpn_portal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ukpn-backend
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql://ukpn_user:ukpn_password@postgres:5432/ukpn_portal
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ukpn_portal
+      DB_USER: ukpn_user
+      DB_PASSWORD: ukpn_password
+      SECRET_KEY: ukpn-secret-key-change-in-production
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - ukpn-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ukpn-frontend
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - ukpn-network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  ukpn-network:
+    driver: bridge

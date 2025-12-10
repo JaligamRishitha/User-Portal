@@ -17,7 +17,7 @@ const Icon = ({ icon, className = "" }) => {
         'lucide:mail': '✉️',
         'lucide:x': '✕',
         'lucide:menu': '☰',
-        'lucide:log-out': '🚪',
+        'lucide:log-out': '🔓',
         'lucide:book-open': '📖',
         'lucide:twitter': '🐦',
         'lucide:linkedin': '💼',

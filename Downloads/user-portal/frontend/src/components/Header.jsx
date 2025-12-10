@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import Icon from './Icon';
 import NavItem from './NavItem';
 
@@ -24,6 +25,32 @@ const Header = () => {
         navigate(path);
         setMobileMenuOpen(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleLogout = () => {
+        Swal.fire({
+            title: 'Logout',
+            text: 'Are you sure you want to logout?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#ea580c',
+            cancelButtonColor: '#71717a',
+            confirmButtonText: 'Yes, logout',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Logged Out',
+                    text: 'You have been successfully logged out.',
+                    icon: 'success',
+                    confirmButtonColor: '#ea580c',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    navigate('/login');
+                });
+            }
+        });
     };
 
     return (
@@ -64,7 +91,7 @@ const Header = () => {
                             <button onClick={() => handleNavigate('/details')} className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-100 to-white border border-zinc-200 shadow-sm flex items-center justify-center text-zinc-400 hover:text-orange-600 hover:border-orange-300 transition-all">
                                 <Icon icon="lucide:user" />
                             </button>
-                            <button className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-100 to-white border border-zinc-200 shadow-sm flex items-center justify-center text-zinc-400 hover:text-red-600 hover:border-red-300 transition-all">
+                            <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-100 to-white border border-zinc-200 shadow-sm flex items-center justify-center text-zinc-400 hover:text-red-600 hover:border-red-300 transition-all">
                                 <Icon icon="lucide:log-out" />
                             </button>
                         </div>
@@ -94,7 +121,7 @@ const Header = () => {
                             <span className="text-sm font-bold text-zinc-600">Profile Actions</span>
                             <div className="flex gap-4">
                                 <button onClick={() => handleNavigate('/details')} className="text-zinc-500"><Icon icon="lucide:user" /></button>
-                                <button className="text-red-500"><Icon icon="lucide:log-out" /></button>
+                                <button onClick={handleLogout} className="text-red-500"><Icon icon="lucide:log-out" /></button>
                             </div>
                         </div>
                     </div>

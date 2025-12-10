@@ -59,22 +59,22 @@ const UserDetails = () => {
     };
 
     const LabelValue = ({ label, value }) => (
-        <div className="group border-b border-zinc-100 pb-4">
+        <div className="group border-b border-zinc-100 pb-3">
             <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-1">{label}</label>
-            <div className="text-base font-medium text-zinc-900">{value}</div>
+            <div className="text-sm font-medium text-zinc-900">{value}</div>
         </div>
     );
 
     return (
         <FadeInWhenVisible>
-            <div className="max-w-3xl mx-auto glass-panel p-8 rounded-2xl shadow-xl border-t-4 border-orange-500">
-                <h2 className="text-2xl font-bold text-zinc-900 mb-6 flex items-center gap-3">
+            <div className="max-w-3xl mx-auto glass-panel p-6 rounded-2xl shadow-xl border-t-4 border-orange-500">
+                <h2 className="text-xl font-bold text-zinc-900 mb-4 flex items-center gap-3">
                     <Icon icon="lucide:user" className="text-orange-500" /> User Details
                 </h2>
 
                 {step === 0 && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <LabelValue label="Grantor Number" value={formData.grantorNumber} />
                             <LabelValue label="Name" value={formData.name} />
                             <LabelValue label="Email" value={formData.email} />
@@ -83,8 +83,8 @@ const UserDetails = () => {
                         </div>
                         <LabelValue label="Address" value={formData.address} />
 
-                        <div className="pt-4 flex justify-end">
-                            <button onClick={() => setStep(1)} className="px-6 py-2.5 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-zinc-200">
+                        <div className="pt-3 flex justify-end">
+                            <button onClick={() => setStep(1)} className="px-6 py-2 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors shadow-md">
                                 Update Details
                             </button>
                         </div>
@@ -92,9 +92,9 @@ const UserDetails = () => {
                 )}
 
                 {step === 1 && (
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-zinc-800">What would you like to update?</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                        <h3 className="text-base font-semibold text-zinc-800">What would you like to update?</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {fields.map(field => (
                                 <label key={field} className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${selectedFields.includes(field) ? 'border-orange-500 bg-orange-50' : 'border-zinc-200 hover:border-orange-300'}`}>
                                     <input
@@ -121,9 +121,9 @@ const UserDetails = () => {
                 )}
 
                 {step === 2 && (
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-zinc-800">Please provide reason for updating</h3>
-                        <div className="space-y-4">
+                    <div className="space-y-4">
+                        <h3 className="text-base font-semibold text-zinc-800">Please provide reason for updating</h3>
+                        <div className="space-y-3">
                             {selectedFields.map(field => (
                                 <div key={field}>
                                     <label className="block text-sm font-medium text-zinc-700 mb-2">{field}</label>
@@ -148,9 +148,9 @@ const UserDetails = () => {
                 )}
 
                 {step === 3 && (
-                    <form onSubmit={submitUpdate} className="space-y-6">
-                        <h3 className="text-lg font-semibold text-zinc-800">Enter New Details</h3>
-                        <div className="space-y-5">
+                    <form onSubmit={submitUpdate} className="space-y-4">
+                        <h3 className="text-base font-semibold text-zinc-800">Enter New Details</h3>
+                        <div className="space-y-3">
                             {selectedFields.includes("Name") && (
                                 <div><label className="text-sm font-medium text-zinc-700">Name</label><input type="text" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.name} /></div>
                             )}

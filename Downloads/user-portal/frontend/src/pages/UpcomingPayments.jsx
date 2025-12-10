@@ -55,7 +55,7 @@ const UpcomingPayments = () => {
             {/* Modal */}
             {selectedAgreement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh] mt-20">
                         <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-gradient-to-r from-orange-500 to-red-600 text-white">
                             <div>
                                 <h3 className="text-xl font-bold">Breakdown: {selectedAgreement.id}</h3>
@@ -69,34 +69,53 @@ const UpcomingPayments = () => {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-zinc-50 text-zinc-500 font-semibold border-b border-zinc-100 sticky top-0">
                                     <tr>
-                                        <th className="px-6 py-3">Item No</th>
-                                        <th className="px-6 py-3">Asset Type</th>
-                                        <th className="px-6 py-3">Short Text</th>
-                                        <th className="px-6 py-3 text-right">Rental (£)</th>
-                                        <th className="px-6 py-3 text-right">Comp (£)</th>
+                                        <th className="px-4 py-3">Item No</th>
+                                        <th className="px-4 py-3">Land Reg No</th>
+                                        <th className="px-4 py-3">Asset Type</th>
+                                        <th className="px-4 py-3">Asset No</th>
+                                        <th className="px-4 py-3">Short Text</th>
+                                        <th className="px-4 py-3 text-right">Multiplier</th>
+                                        <th className="px-4 py-3 text-right">Rental</th>
+                                        <th className="px-4 py-3 text-right">Compensation</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-50">
                                     <tr>
-                                        <td className="px-6 py-3 text-zinc-500">001</td>
-                                        <td className="px-6 py-3 font-medium text-orange-600">Pole (HV)</td>
-                                        <td className="px-6 py-3 text-zinc-600">Wood Pole Support</td>
-                                        <td className="px-6 py-3 text-right font-bold">150.00</td>
-                                        <td className="px-6 py-3 text-right">0.00</td>
+                                        <td className="px-4 py-3 text-zinc-500">001</td>
+                                        <td className="px-4 py-3 text-zinc-600 font-mono text-xs">LR-2023-001</td>
+                                        <td className="px-4 py-3 font-medium text-orange-600">Pole (HV)</td>
+                                        <td className="px-4 py-3 text-zinc-600 font-mono text-xs">AST-5001</td>
+                                        <td className="px-4 py-3 text-zinc-600">Wood Pole Support</td>
+                                        <td className="px-4 py-3 text-right text-zinc-900">1.5</td>
+                                        <td className="px-4 py-3 text-right font-bold">150.00</td>
+                                        <td className="px-4 py-3 text-right">0.00</td>
                                     </tr>
                                     <tr>
-                                        <td className="px-6 py-3 text-zinc-500">002</td>
-                                        <td className="px-6 py-3 font-medium text-orange-600">Stay</td>
-                                        <td className="px-6 py-3 text-zinc-600">Anchor Support</td>
-                                        <td className="px-6 py-3 text-right font-bold">25.00</td>
-                                        <td className="px-6 py-3 text-right">10.00</td>
+                                        <td className="px-4 py-3 text-zinc-500">002</td>
+                                        <td className="px-4 py-3 text-zinc-600 font-mono text-xs">LR-2023-002</td>
+                                        <td className="px-4 py-3 font-medium text-orange-600">Stay</td>
+                                        <td className="px-4 py-3 text-zinc-600 font-mono text-xs">AST-5002</td>
+                                        <td className="px-4 py-3 text-zinc-600">Anchor Support</td>
+                                        <td className="px-4 py-3 text-right text-zinc-900">1.0</td>
+                                        <td className="px-4 py-3 text-right font-bold">25.00</td>
+                                        <td className="px-4 py-3 text-right">10.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="px-4 py-3 text-zinc-500">003</td>
+                                        <td className="px-4 py-3 text-zinc-600 font-mono text-xs">LR-2023-003</td>
+                                        <td className="px-4 py-3 font-medium text-orange-600">Cable (LV)</td>
+                                        <td className="px-4 py-3 text-zinc-600 font-mono text-xs">AST-5003</td>
+                                        <td className="px-4 py-3 text-zinc-600">Underground Cable</td>
+                                        <td className="px-4 py-3 text-right text-zinc-900">2.0</td>
+                                        <td className="px-4 py-3 text-right font-bold">75.00</td>
+                                        <td className="px-4 py-3 text-right">5.00</td>
                                     </tr>
                                 </tbody>
                                 <tfoot className="bg-zinc-50 font-bold border-t border-zinc-200">
                                     <tr>
-                                        <td colSpan="3" className="px-6 py-3 text-right text-zinc-900">Totals:</td>
-                                        <td className="px-6 py-3 text-right text-orange-600">£175.00</td>
-                                        <td className="px-6 py-3 text-right text-orange-600">£10.00</td>
+                                        <td colSpan="6" className="px-4 py-3 text-right text-zinc-900">Totals:</td>
+                                        <td className="px-4 py-3 text-right text-orange-600">£250.00</td>
+                                        <td className="px-4 py-3 text-right text-orange-600">£15.00</td>
                                     </tr>
                                 </tfoot>
                             </table>
