@@ -3,46 +3,60 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import Icon from '../components/Icon';
 import ukpnLogo from '../assets/images/ukpn-logo.png';
+import { authAPI } from '../services/api';
 
 const Login = () => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Simple validation
-        if (!username || !password) {
+        if (!email || !password) {
             Swal.fire({
                 title: 'Error',
-                text: 'Please enter both username and password',
+                text: 'Please enter both email address and password',
                 icon: 'error',
                 confirmButtonColor: '#ea580c',
             });
             return;
         }
 
-        // Mock login - replace with actual authentication
-        if (username === 'admin' && password === 'admin') {
-            Swal.fire({
-                title: 'Success!',
-                text: 'Login successful',
-                icon: 'success',
-                confirmButtonColor: '#ea580c',
-                timer: 1500,
-                showConfirmButton: false
-            }).then(() => {
-                navigate('/');
-            });
-        } else {
+        setLoading(true);
+
+        try {
+            const response = await authAPI.login(email, password);
+
+            if (response.success) {
+                // Store token and user info
+                localStorage.setItem('token', response.token);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                localStorage.setItem('vendorId', response.user.id);
+
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Login successful',
+                    icon: 'success',
+                    confirmButtonColor: '#ea580c',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    navigate('/');
+                });
+            }
+        } catch (error) {
             Swal.fire({
                 title: 'Login Failed',
-                text: 'Invalid username or password',
+                text: error.message || 'Invalid email address or password',
                 icon: 'error',
                 confirmButtonColor: '#ea580c',
             });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -81,20 +95,20 @@ const Login = () => {
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 {/* Username Field */}
                                 <div>
-                                    <label htmlFor="username" className="block text-sm font-bold text-zinc-700 mb-2">
-                                        Username
+                                    <label htmlFor="email" className="block text-sm font-bold text-zinc-700 mb-2">
+                                        Email Address
                                     </label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                                            <Icon icon="lucide:user" className="text-lg" />
+                                            <Icon icon="lucide:mail" className="text-lg" />
                                         </div>
                                         <input
-                                            id="username"
-                                            type="text"
-                                            value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
+                                            id="email"
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
                                             className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-lg focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-zinc-900"
-                                            placeholder="Enter your username"
+                                            placeholder="Enter your email address"
                                         />
                                     </div>
                                 </div>
@@ -143,9 +157,10 @@ const Login = () => {
                                 {/* Login Button */}
                                 <button
                                     type="submit"
-                                    className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-lg shadow-lg hover:shadow-orange-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                    disabled={loading}
+                                    className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-lg shadow-lg hover:shadow-orange-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Sign In
+                                    {loading ? 'Signing in...' : 'Sign In'}
                                 </button>
                             </form>
 

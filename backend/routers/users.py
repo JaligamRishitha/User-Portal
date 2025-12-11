@@ -4,6 +4,7 @@ from sqlalchemy import text
 from schemas import UserDetailsResponse, UserUpdateRequest, GenericResponse
 from database import get_db
 from models import Vendor, UserDetail
+from email_service import send_update_notification
 
 router = APIRouter()
 
@@ -53,22 +54,31 @@ async def update_user_details(
 ):
     """Update user details"""
     try:
+        updated_fields = {}
+        user_name = ""
+        
         # Update vendor table
         if request.name:
             name_parts = request.name.split(' ', 1)
             first_name = name_parts[0]
             last_name = name_parts[1] if len(name_parts) > 1 else ''
+            user_name = request.name
             
             vendor = db.query(Vendor).filter(Vendor.vendor_id == vendor_id).first()
             if vendor:
-                vendor.first_name = first_name
-                vendor.last_name = last_name
+                if request.name:
+                    vendor.first_name = first_name
+                    vendor.last_name = last_name
+                    updated_fields['Name'] = request.name
                 if request.email:
                     vendor.email = request.email
+                    updated_fields['Email'] = request.email
                 if request.mobile:
                     vendor.mobile = request.mobile
+                    updated_fields['Mobile Number'] = request.mobile
                 if request.telephone:
                     vendor.telephone = request.telephone
+                    updated_fields['Telephone'] = request.telephone
         
         # Update address if provided
         if request.address:
@@ -80,8 +90,18 @@ async def update_user_details(
                 user_detail.address_line2 = address_parts[2] if len(address_parts) > 2 else ''
                 user_detail.city = address_parts[3] if len(address_parts) > 3 else ''
                 user_detail.postcode = address_parts[4] if len(address_parts) > 4 else ''
+                updated_fields['Address'] = request.address
         
         db.commit()
+        
+        # Send email notification
+        if updated_fields:
+            await send_update_notification(
+                grantor_number=vendor_id,
+                update_type="User Details",
+                updated_fields=updated_fields,
+                user_name=user_name
+            )
         
         return GenericResponse(
             success=True,

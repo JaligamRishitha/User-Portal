@@ -1,20 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import FadeInWhenVisible from '../components/FadeInWhenVisible';
 import Icon from '../components/Icon';
+import { bankAPI } from '../services/api';
 
 const BankDetails = () => {
     const [step, setStep] = useState(0);
     const [selectedFields, setSelectedFields] = useState([]);
     const [reasons, setReasons] = useState({});
-    const [formData] = useState({
-        sortCode: "20-00-00",
-        accountNumber: "12345678",
-        accountHolder: "James Anderson",
-        mobile: "07700 900 123",
-        email: "james.anderson@example.com",
-        paymentMethod: "BACS"
+    const [loading, setLoading] = useState(true);
+    const [formData, setFormData] = useState({
+        sortCode: "",
+        accountNumber: "",
+        accountHolder: "",
+        mobile: "",
+        email: "",
+        paymentMethod: ""
     });
+
+    const vendorId = localStorage.getItem('vendorId') || '5000000061';
+
+    useEffect(() => {
+        fetchBankDetails();
+    }, []);
+
+    const fetchBankDetails = async () => {
+        try {
+            setLoading(true);
+            const response = await bankAPI.getDetails(vendorId);
+            if (response.success) {
+                setFormData(response.data);
+            }
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to load bank details',
+                icon: 'error',
+                confirmButtonColor: '#ea580c',
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fields = ["Sort Code", "Account Number", "Account Holder Name", "Mobile Number", "Email", "Payment Method"];
 
@@ -30,11 +57,10 @@ const BankDetails = () => {
         setReasons({ ...reasons, [field]: value });
     };
 
-    const submitUpdate = (e) => {
+    const submitUpdate = async (e) => {
         e.preventDefault();
 
-        // First Confirmation Alert
-        Swal.fire({
+        const result = await Swal.fire({
             title: 'Are you sure?',
             text: "Do you want to proceed with the update?",
             icon: 'question',
@@ -43,19 +69,51 @@ const BankDetails = () => {
             cancelButtonColor: '#71717a',
             confirmButtonText: 'Yes, update',
             cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Success Alert
-                setStep(0);
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const updateData = {};
+                selectedFields.forEach(field => {
+                    const fieldMap = {
+                        'Sort Code': 'sortCode',
+                        'Account Number': 'accountNumber',
+                        'Account Holder Name': 'accountHolder',
+                        'Mobile Number': 'mobile',
+                        'Email': 'email',
+                        'Payment Method': 'paymentMethod'
+                    };
+                    const key = fieldMap[field];
+                    if (key) {
+                        updateData[key] = formData[key];
+                    }
+                });
+
+                const response = await bankAPI.updateDetails(vendorId, updateData);
+
+                if (response.success) {
+                    setStep(0);
+                    setSelectedFields([]);
+                    setReasons({});
+                    await fetchBankDetails();
+
+                    Swal.fire({
+                        title: 'Update Request Sent',
+                        text: 'Your bank details update request has been sent to UKPN Property and Consent team. Please note that it will take up to 5 working days to reflect in our system.',
+                        icon: 'success',
+                        confirmButtonColor: '#ea580c',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            } catch (error) {
                 Swal.fire({
-                    title: 'Update Request Sent',
-                    text: 'Your bank details update request has been sent to UKPN Property and Consent team. Please note that it will take up to 5 working days to reflect in our system.',
-                    icon: 'success',
+                    title: 'Error',
+                    text: error.message || 'Failed to update bank details',
+                    icon: 'error',
                     confirmButtonColor: '#ea580c',
-                    confirmButtonText: 'OK'
                 });
             }
-        });
+        }
     };
 
     const LabelValue = ({ label, value }) => (
@@ -159,46 +217,119 @@ const BankDetails = () => {
                     {step === 3 && (
                         <form onSubmit={submitUpdate} className="space-y-4">
                             <h3 className="text-base font-semibold text-zinc-800">Enter New Details</h3>
+                            <p className="text-sm text-zinc-600">Fields highlighted in orange can be edited. Other fields are read-only.</p>
                             <div className="space-y-3">
-                                {selectedFields.includes("Sort Code") && (
-                                    <div>
-                                        <label className="text-sm font-medium text-zinc-700">Sort Code</label>
-                                        <input type="text" placeholder="00-00-00" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none font-mono" defaultValue={formData.sortCode} />
-                                    </div>
-                                )}
-                                {selectedFields.includes("Account Number") && (
-                                    <div>
-                                        <label className="text-sm font-medium text-zinc-700">Account Number</label>
-                                        <input type="text" placeholder="00000000" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none font-mono" defaultValue={formData.accountNumber} />
-                                    </div>
-                                )}
-                                {selectedFields.includes("Account Holder Name") && (
-                                    <div>
-                                        <label className="text-sm font-medium text-zinc-700">Account Holder Name</label>
-                                        <input type="text" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.accountHolder} />
-                                    </div>
-                                )}
-                                {selectedFields.includes("Mobile Number") && (
-                                    <div>
-                                        <label className="text-sm font-medium text-zinc-700">Mobile Number</label>
-                                        <input type="tel" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.mobile} />
-                                    </div>
-                                )}
-                                {selectedFields.includes("Email") && (
-                                    <div>
-                                        <label className="text-sm font-medium text-zinc-700">Email</label>
-                                        <input type="email" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.email} />
-                                    </div>
-                                )}
-                                {selectedFields.includes("Payment Method") && (
-                                    <div>
-                                        <label className="text-sm font-medium text-zinc-700">Payment Method</label>
-                                        <select className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.paymentMethod}>
-                                            <option>BACS</option>
-                                            <option>Cheque</option>
-                                        </select>
-                                    </div>
-                                )}
+                                {/* Sort Code Field */}
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                        Sort Code
+                                        {selectedFields.includes("Sort Code") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="00-00-00"
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none font-mono ${selectedFields.includes("Sort Code")
+                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            }`}
+                                        value={formData.sortCode}
+                                        onChange={(e) => selectedFields.includes("Sort Code") && setFormData({ ...formData, sortCode: e.target.value })}
+                                        readOnly={!selectedFields.includes("Sort Code")}
+                                    />
+                                </div>
+
+                                {/* Account Number Field */}
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                        Account Number
+                                        {selectedFields.includes("Account Number") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="00000000"
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none font-mono ${selectedFields.includes("Account Number")
+                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            }`}
+                                        value={formData.accountNumber}
+                                        onChange={(e) => selectedFields.includes("Account Number") && setFormData({ ...formData, accountNumber: e.target.value })}
+                                        readOnly={!selectedFields.includes("Account Number")}
+                                    />
+                                </div>
+
+                                {/* Account Holder Name Field */}
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                        Account Holder Name
+                                        {selectedFields.includes("Account Holder Name") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Account Holder Name")
+                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            }`}
+                                        value={formData.accountHolder}
+                                        onChange={(e) => selectedFields.includes("Account Holder Name") && setFormData({ ...formData, accountHolder: e.target.value })}
+                                        readOnly={!selectedFields.includes("Account Holder Name")}
+                                    />
+                                </div>
+
+                                {/* Mobile Number Field */}
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                        Mobile Number
+                                        {selectedFields.includes("Mobile Number") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Mobile Number")
+                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            }`}
+                                        value={formData.mobile}
+                                        onChange={(e) => selectedFields.includes("Mobile Number") && setFormData({ ...formData, mobile: e.target.value })}
+                                        readOnly={!selectedFields.includes("Mobile Number")}
+                                    />
+                                </div>
+
+                                {/* Email Field */}
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                        Email
+                                        {selectedFields.includes("Email") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                    </label>
+                                    <input
+                                        type="email"
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Email")
+                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            }`}
+                                        value={formData.email}
+                                        onChange={(e) => selectedFields.includes("Email") && setFormData({ ...formData, email: e.target.value })}
+                                        readOnly={!selectedFields.includes("Email")}
+                                    />
+                                </div>
+
+                                {/* Payment Method Field */}
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                        Payment Method
+                                        {selectedFields.includes("Payment Method") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                    </label>
+                                    <select
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Payment Method")
+                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            }`}
+                                        value={formData.paymentMethod}
+                                        onChange={(e) => selectedFields.includes("Payment Method") && setFormData({ ...formData, paymentMethod: e.target.value })}
+                                        disabled={!selectedFields.includes("Payment Method")}
+                                    >
+                                        <option>BACS</option>
+                                        <option>Cheque</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-3">
                                 <button type="button" onClick={() => setStep(2)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Back</button>

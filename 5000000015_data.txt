@@ -1,0 +1,38 @@
+user details :
+{
+"grantornumber":5000000015
+  "name": "J A DREIER",
+  "email": "susanfrogers@gmail.com",
+  "street": "TAMLEY COTTAGE",
+  "address1": "TAMLEY LANE",
+  "address2": "HASTINGLEIGH",
+  "mobile": null,
+  "telphone": "07940 012016",
+  "postcode": "TN25 5HW",
+  "bankaccountnumber": "",
+  "holdername": null,
+  "paymentmethod": "K",
+  "zahls": "-",
+  "confs": "-",
+  "sperr": "-",
+  "sortcode": "",
+  "house": null,
+  "title": "0002"
+}
+Upcoming payments:
+{
+  "output": "{\"PAYMENT_HEADER\":{\"VENDOR_NO\":\"5000000015\",\"VENDOR_NAME\":\"Ms S F ROGERS\",\"ADDR_LINE_1\":\"TAMLEY COTTAGE\",\"ADDR_LINE_2\":\"ASHFORD TN25 5HW\"},\"PAYMENT_SCH_HDR\":[{\"AGR_NO\":\"1000000003\",\"AGR_TYPE\":\"ZWLT\",\"LOCATION\":\"\",\"LAST_PAY_DATE\":\"2023-11-01\",\"NEXT_PAY_DATE\":null,\"TOTAL_CONSENT\":0.0,\"CURR\":\"\"}],\"PAYMENT_SCH_ITEM\":[{\"AGR_NO\":\"1000000003\",\"ITEM_NO\":\"00010\",\"AGR_TYPE\":\"ZWLT\",\"START_DATE\":\"2021-10-20\",\"LOCATION\":\"\",\"LAND_REGNO\":\"K651089\",\"FUNC_LOC\":\"\",\"ASSET_TYPE\":\"\",\"ASSET_NO\":\"\",\"SHORT_TXT\":\"ARABLE SINGLE POLE WITH 1 STAY 884095\",\"LAST_PAY_DATE\":\"2023-11-01\",\"NEXT_PAY_DATE\":null,\"MULTIPLIER\":\"    1.000\",\"RENTAL\":0.0,\"COMPENSATION\":0.0,\"LEASE\":0.0,\"CURR\":\"\"},{\"AGR_NO\":\"1000000003\",\"ITEM_NO\":\"00020\",\"AGR_TYPE\":\"ZWLT\",\"START_DATE\":\"2021-10-20\",\"LOCATION\":\"\",\"LAND_REGNO\":\"K758844\",\"FUNC_LOC\":\"\",\"ASSET_TYPE\":\"\",\"ASSET_NO\":\"\",\"SHORT_TXT\":\"HEDGEROW SINGLE POLE 884094\",\"LAST_PAY_DATE\":\"2023-11-01\",\"NEXT_PAY_DATE\":null,\"MULTIPLIER\":\"    1.000\",\"RENTAL\":0.0,\"COMPENSATION\":0.0,\"LEASE\":0.0,\"CURR\":\"\"},{\"AGR_NO\":\"1000000003\",\"ITEM_NO\":\"00030\",\"AGR_TYPE\":\"ZWLT\",\"START_DATE\":\"2021-10-20\",\"LOCATION\":\"\",\"LAND_REGNO\":\"K758844\",\"FUNC_LOC\":\"\",\"ASSET_TYPE\":\"\",\"ASSET_NO\":\"\",\"SHORT_TXT\":\"HEDGEROW SINGLE POLE 884062\",\"LAST_PAY_DATE\":\"2023-11-01\",\"NEXT_PAY_DATE\":null,\"MULTIPLIER\":\"    1.000\",\"RENTAL\":0.0,\"COMPENSATION\":0.0,\"LEASE\":0.0,\"CURR\":\"\"},{\"AGR_NO\":\"1000000003\",\"ITEM_NO\":\"00040\",\"AGR_TYPE\":\"ZWLT\",\"START_DATE\":\"2021-10-20\",\"LOCATION\":\"\",\"LAND_REGNO\":\"K768575\",\"FUNC_LOC\":\"\",\"ASSET_TYPE\":\"\",\"ASSET_NO\":\"\",\"SHORT_TXT\":\"HEDGEROW SINGLE POLE 884086\",\"LAST_PAY_DATE\":\"2023-11-01\",\"NEXT_PAY_DATE\":null,\"MULTIPLIER\":\"    1.000\",\"RENTAL\":0.0,\"COMPENSATION\":0.0,\"LEASE\":0.0,\"CURR\":\"\"},{\"AGR_NO\":\"1000000003\",\"ITEM_NO\":\"00050\",\"AGR_TYPE\":\"ZWLT\",\"START_DATE\":\"2021-10-20\",\"LOCATION\":\"\",\"LAND_REGNO\":\"K758844\",\"FUNC_LOC\":\"\",\"ASSET_TYPE\":\"\",\"ASSET_NO\":\"\",\"SHORT_TXT\":\"HEDGEROW SINGLE POLE WITH 1 STAY 884085\",\"LAST_PAY_DATE\":\"2023-11-01\",\"NEXT_PAY_DATE\":null,\"MULTIPLIER\":\"    1.000\",\"RENTAL\":0.0,\"COMPENSATION\":0.0,\"LEASE\":0.0,\"CURR\":\"\"}]}"
+}
+past history for 2023:
+{
+  "output": "[{\"BUKRS\":\"1900\",\"GJAHR\":\"2023\",\"LIFNR\":\"5000000015\",\"ZANRE\":\"Mr.\",\"ZNME1\":\"J A DREIER\",\"ZNME2\":\"Ms S F ROGERS\",\"ZPSTL\":\"TN25 5HW\",\"ZORT1\":\"ASHFORD\",\"ZSTRA\":\"TAMLEY COTTAGE\",\"AUGBL\":\"2000017143\",\"BELNR\":\"5110697500\",\"XBLNR\":\"5110697500\",\"RMWWR\":888.0,\"NETWR\":888.0,\"WMWST1\":0.0,\"MWSKZ1\":\"V0\",\"TEXT1\":\"Exempt from input VAT\",\"EBELN\":\"1000000003\",\"BSART\":\"ZWLT\",\"BUDAT\":\"2023-11-01\",\"BLDAT\":\"2023-11-01\",\"BLART\":\"YW\",\"RNTAMT\":0.0,\"CMPAMT\":2280.0,\"LSEAMT\":0.0,\"UNSEZ\":\"\",\"TPLNR\":\"\",\"CHECT\":\"171572\",\"ZALDT\":\"2023-11-02\",\"ZLSPR\":\"\",\"ZLSCH\":\"K\",\"RWBTR\":888.0,\"BANCD\":\"2023-11-09\",\"VOIDR\":\"00\",\"VOIDT\":\"\",\"VOIDD\":null,\"VOIDU\":\"\",\"UNIT\":\"\",\"CURR\":\"\"}]"
+}
+Past history for 2024 :
+NO data
+Past history for 2022:
+No data 
+
+
+File name for 2023:
+5000000015_2023.pdf
+

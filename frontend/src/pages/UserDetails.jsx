@@ -1,20 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import FadeInWhenVisible from '../components/FadeInWhenVisible';
 import Icon from '../components/Icon';
+import { userAPI } from '../services/api';
 
 const UserDetails = () => {
     const [step, setStep] = useState(0);
     const [selectedFields, setSelectedFields] = useState([]);
     const [reasons, setReasons] = useState({});
+    const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({
-        grantorNumber: "UKPN-88219-X",
-        name: "James Anderson",
-        email: "james.anderson@example.com",
-        mobile: "07700 900 123",
-        telephone: "020 7946 0123",
-        address: "12 Willow Avenue, London, SE10 8ES"
+        grantorNumber: "",
+        name: "",
+        email: "",
+        mobile: "",
+        telephone: "",
+        address: ""
     });
+
+    const vendorId = localStorage.getItem('vendorId') || '5000000061';
+
+    useEffect(() => {
+        fetchUserDetails();
+    }, []);
+
+    const fetchUserDetails = async () => {
+        try {
+            setLoading(true);
+            const response = await userAPI.getDetails(vendorId);
+            if (response.success) {
+                setFormData(response.data);
+            }
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to load user details',
+                icon: 'error',
+                confirmButtonColor: '#ea580c',
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fields = ["Name", "Email", "Mobile Number", "Address", "Telephone"];
 
@@ -30,11 +57,11 @@ const UserDetails = () => {
         setReasons({ ...reasons, [field]: value });
     };
 
-    const submitUpdate = (e) => {
+    const submitUpdate = async (e) => {
         e.preventDefault();
 
         // First Confirmation Alert
-        Swal.fire({
+        const result = await Swal.fire({
             title: 'Are you sure?',
             text: "Do you want to proceed with the update?",
             icon: 'question',
@@ -43,19 +70,50 @@ const UserDetails = () => {
             cancelButtonColor: '#71717a',
             confirmButtonText: 'Yes, update',
             cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Success Alert
-                setStep(0);
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const updateData = {};
+                selectedFields.forEach(field => {
+                    const fieldMap = {
+                        'Name': 'name',
+                        'Email': 'email',
+                        'Mobile Number': 'mobile',
+                        'Telephone': 'telephone',
+                        'Address': 'address'
+                    };
+                    const key = fieldMap[field];
+                    if (key) {
+                        updateData[key] = formData[key];
+                    }
+                });
+
+                const response = await userAPI.updateDetails(vendorId, updateData);
+
+                if (response.success) {
+                    setStep(0);
+                    setSelectedFields([]);
+                    setReasons({});
+                    await fetchUserDetails(); // Refresh data
+
+                    Swal.fire({
+                        title: 'Update Request Sent',
+                        text: 'Your update request has been sent to UKPN Property and Consent team. Please note that it will take up to 5 working days to reflect in our system.',
+                        icon: 'success',
+                        confirmButtonColor: '#ea580c',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            } catch (error) {
                 Swal.fire({
-                    title: 'Update Request Sent',
-                    text: 'Your update request has been sent to UKPN Property and Consent team. Please note that it will take up to 5 working days to reflect in our system.',
-                    icon: 'success',
+                    title: 'Error',
+                    text: error.message || 'Failed to update user details',
+                    icon: 'error',
                     confirmButtonColor: '#ea580c',
-                    confirmButtonText: 'OK'
                 });
             }
-        });
+        }
     };
 
     const LabelValue = ({ label, value }) => (
@@ -64,6 +122,17 @@ const UserDetails = () => {
             <div className="text-sm font-medium text-zinc-900">{value}</div>
         </div>
     );
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+                    <p className="mt-4 text-zinc-600">Loading user details...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <FadeInWhenVisible>
@@ -150,22 +219,97 @@ const UserDetails = () => {
                 {step === 3 && (
                     <form onSubmit={submitUpdate} className="space-y-4">
                         <h3 className="text-base font-semibold text-zinc-800">Enter New Details</h3>
+                        <p className="text-sm text-zinc-600">Fields highlighted in orange can be edited. Other fields are read-only.</p>
                         <div className="space-y-3">
-                            {selectedFields.includes("Name") && (
-                                <div><label className="text-sm font-medium text-zinc-700">Name</label><input type="text" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.name} /></div>
-                            )}
-                            {selectedFields.includes("Email") && (
-                                <div><label className="text-sm font-medium text-zinc-700">Email</label><input type="email" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.email} /></div>
-                            )}
-                            {selectedFields.includes("Mobile Number") && (
-                                <div><label className="text-sm font-medium text-zinc-700">Mobile Number</label><input type="tel" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.mobile} /></div>
-                            )}
-                            {selectedFields.includes("Telephone") && (
-                                <div><label className="text-sm font-medium text-zinc-700">Telephone</label><input type="tel" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.telephone} /></div>
-                            )}
-                            {selectedFields.includes("Address") && (
-                                <div><label className="text-sm font-medium text-zinc-700">Address</label><textarea rows="3" className="mt-1 w-full px-4 py-2 bg-white border border-zinc-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none" defaultValue={formData.address}></textarea></div>
-                            )}
+                            {/* Name Field */}
+                            <div>
+                                <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                    Name
+                                    {selectedFields.includes("Name") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                </label>
+                                <input
+                                    type="text"
+                                    className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Name")
+                                        ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                        : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        }`}
+                                    value={formData.name}
+                                    onChange={(e) => selectedFields.includes("Name") && setFormData({ ...formData, name: e.target.value })}
+                                    readOnly={!selectedFields.includes("Name")}
+                                />
+                            </div>
+
+                            {/* Email Field */}
+                            <div>
+                                <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                    Email
+                                    {selectedFields.includes("Email") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                </label>
+                                <input
+                                    type="email"
+                                    className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Email")
+                                        ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                        : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        }`}
+                                    value={formData.email}
+                                    onChange={(e) => selectedFields.includes("Email") && setFormData({ ...formData, email: e.target.value })}
+                                    readOnly={!selectedFields.includes("Email")}
+                                />
+                            </div>
+
+                            {/* Mobile Number Field */}
+                            <div>
+                                <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                    Mobile Number
+                                    {selectedFields.includes("Mobile Number") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                </label>
+                                <input
+                                    type="tel"
+                                    className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Mobile Number")
+                                        ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                        : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        }`}
+                                    value={formData.mobile}
+                                    onChange={(e) => selectedFields.includes("Mobile Number") && setFormData({ ...formData, mobile: e.target.value })}
+                                    readOnly={!selectedFields.includes("Mobile Number")}
+                                />
+                            </div>
+
+                            {/* Telephone Field */}
+                            <div>
+                                <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                    Telephone
+                                    {selectedFields.includes("Telephone") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                </label>
+                                <input
+                                    type="tel"
+                                    className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Telephone")
+                                        ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                        : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        }`}
+                                    value={formData.telephone}
+                                    onChange={(e) => selectedFields.includes("Telephone") && setFormData({ ...formData, telephone: e.target.value })}
+                                    readOnly={!selectedFields.includes("Telephone")}
+                                />
+                            </div>
+
+                            {/* Address Field */}
+                            <div>
+                                <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+                                    Address
+                                    {selectedFields.includes("Address") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                </label>
+                                <textarea
+                                    rows="3"
+                                    className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Address")
+                                        ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                        : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        }`}
+                                    value={formData.address}
+                                    onChange={(e) => selectedFields.includes("Address") && setFormData({ ...formData, address: e.target.value })}
+                                    readOnly={!selectedFields.includes("Address")}
+                                />
+                            </div>
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
                             <button type="button" onClick={() => setStep(2)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Back</button>

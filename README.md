@@ -88,9 +88,9 @@ CREATE DATABASE ukpn_portal;
 
 ## Default Credentials
 
-- **Username:** admin
-- **Password:** admin
-- **Vendor ID:** 5000000061
+- **Email:** farm@boltonfarms.co.uk
+- **Password:** Test@123
+- **Vendor ID (Grantor Number):** 5000000061
 
 ## API Documentation
 

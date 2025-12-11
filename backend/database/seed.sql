@@ -1,8 +1,9 @@
 -- Seed data for UKPN Power Portal
 
 -- Insert Vendor
-INSERT INTO vendors (vendor_id, title, first_name, last_name, email, mobile, telephone)
-VALUES ('5000000061', 'Mr.', 'D L', 'BOLTON', 'farm@boltonfarms.co.uk', '07700 900 123', '020 7946 0123');
+-- Password: Test@123 (hashed with bcrypt)
+INSERT INTO vendors (vendor_id, title, first_name, last_name, email, password_hash, mobile, telephone)
+VALUES ('5000000061', 'Mr.', 'D L', 'BOLTON', 'farm@boltonfarms.co.uk', '$2b$12$kdGQQ35qWZnH8GPvHygOyuXY4gSrn0y/I5MI.s55fzumxYUIot7CC', '07700 900 123', '020 7946 0123');
 
 -- Insert User Details
 INSERT INTO user_details (vendor_id, street, address_line1, address_line2, city, postcode, house)

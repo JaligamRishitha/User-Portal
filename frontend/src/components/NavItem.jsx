@@ -2,8 +2,8 @@ import Icon from './Icon';
 
 const NavItem = ({ item, active, onClick, mobile = false }) => {
     const baseClass = mobile
-        ? "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all"
-        : "relative px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-300 flex items-center gap-2 group tracking-tight";
+        ? "flex items-center gap-3 px-4 py-3 text-base font-medium rounded-xl transition-all"
+        : "relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 flex items-center gap-2 group tracking-tight whitespace-nowrap";
 
     const activeClass = mobile
         ? "bg-orange-50 text-orange-700 ring-1 ring-orange-200"
@@ -18,8 +18,8 @@ const NavItem = ({ item, active, onClick, mobile = false }) => {
             onClick={() => onClick(item.id)}
             className={`${baseClass} ${active ? activeClass : inactiveClass}`}
         >
-            <Icon icon={item.icon} className={mobile ? "text-lg text-orange-500" : "text-base"} />
-            <span>{item.label}</span>
+            <Icon icon={item.icon} className={mobile ? "text-lg text-orange-500" : "text-base flex-shrink-0"} />
+            <span className="whitespace-nowrap">{item.label}</span>
         </button>
     );
 };

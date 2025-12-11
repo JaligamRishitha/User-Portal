@@ -3,6 +3,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Login from './pages/Login';
 import Home from './pages/Home';
+import Profile from './pages/Profile';
 import UserDetails from './pages/UserDetails';
 import BankDetails from './pages/BankDetails';
 import PaymentHistory from './pages/PaymentHistory';
@@ -36,6 +37,7 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/details" element={<UserDetails />} />
           <Route path="/bank" element={<BankDetails />} />
           <Route path="/history" element={<PaymentHistory />} />

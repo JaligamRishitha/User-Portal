@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import Icon from './Icon';
 import NavItem from './NavItem';
+import ukpnLogo from '../assets/images/ukpn-logo.png';
 
 const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
 
-    const user = { firstName: "James", lastName: "Anderson" };
+    useEffect(() => {
+        // Get user email from localStorage
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        setUserEmail(user.email || '');
+    }, []);
 
     const menuItems = [
         { id: '/', label: 'Home', icon: 'lucide:layout-dashboard' },
@@ -55,22 +61,19 @@ const Header = () => {
 
     return (
         <header className="sticky top-0 z-50 glass-panel border-b border-orange-200/40 shadow-[0_4px_20px_-10px_rgba(249,115,22,0.1)]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-2 sm:px-4">
                 <div className="flex items-center justify-between h-20">
-                    {/* Logo */}
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('/')}>
-                        <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-lg shadow-orange-200">
-                            <Icon icon="lucide:zap" />
-                            <div className="absolute inset-0 rounded-xl bg-white/20 animate-pulse"></div>
-                        </div>
+                    {/* Logo - Left aligned with minimal margin */}
+                    <div className="flex items-center gap-3 cursor-pointer flex-shrink-0" onClick={() => handleNavigate('/')}>
+                        <img src={ukpnLogo} alt="UKPN Logo" className="h-12 w-auto object-contain" />
                         <div className="flex flex-col">
-                            <span className="text-lg font-bold tracking-tighter text-zinc-900 leading-none">UKPN</span>
-                            <span className="text-[10px] font-semibold tracking-wide text-orange-600 uppercase">Power Portal</span>
+                            <span className="text-xl font-bold tracking-tight text-zinc-900 leading-none">UKPN</span>
+                            <span className="text-xs font-semibold tracking-wide text-orange-600 uppercase">User Portal</span>
                         </div>
                     </div>
 
-                    {/* Desktop Nav */}
-                    <nav className="hidden lg:flex items-center gap-1">
+                    {/* Desktop Nav - Centered */}
+                    <nav className="hidden lg:flex items-center ml-20 absolute left-1/2 transform -translate-x-1/2">
                         {menuItems.map(item => (
                             <NavItem
                                 key={item.id}
@@ -81,19 +84,17 @@ const Header = () => {
                         ))}
                     </nav>
 
-                    {/* Right Actions */}
-                    <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-3 pl-4 border-l border-zinc-200/60">
-                            <div className="flex flex-col text-right">
-                                <span className="text-xs font-bold text-zinc-800">{user.firstName} {user.lastName.charAt(0)}.</span>
-                                <span className="text-[10px] text-zinc-400">ID: 10094822</span>
-                            </div>
-                            <button onClick={() => handleNavigate('/details')} className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-100 to-white border border-zinc-200 shadow-sm flex items-center justify-center text-zinc-400 hover:text-orange-600 hover:border-orange-300 transition-all">
-                                <Icon icon="lucide:user" />
+                    {/* Right Actions - Right aligned with minimal margin */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="hidden sm:flex items-center gap-3">
+                            <button
+                                onClick={() => handleNavigate('/profile')}
+                                className="flex items-center gap-2 px-3 py-2"
+                            >
+                                <Icon icon="lucide:user" className="text-zinc-400 group-hover:text-orange-600 transition-colors" />
+                                <span className="text-sm font-medium text-zinc-600 group-hover:text-zinc-900 transition-colors max-w-[150px] truncate">{userEmail}</span>
                             </button>
-                            <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-100 to-white border border-zinc-200 shadow-sm flex items-center justify-center text-zinc-400 hover:text-red-600 hover:border-red-300 transition-all">
-                                <Icon icon="lucide:log-out" />
-                            </button>
+
                         </div>
 
                         {/* Mobile Menu Button */}
@@ -117,12 +118,15 @@ const Header = () => {
                                 mobile={true}
                             />
                         ))}
-                        <div className="border-t border-zinc-100 pt-3 mt-3 flex justify-between items-center px-4">
-                            <span className="text-sm font-bold text-zinc-600">Profile Actions</span>
-                            <div className="flex gap-4">
-                                <button onClick={() => handleNavigate('/details')} className="text-zinc-500"><Icon icon="lucide:user" /></button>
-                                <button onClick={handleLogout} className="text-red-500"><Icon icon="lucide:log-out" /></button>
-                            </div>
+                        <div className="border-t border-zinc-100 pt-3 mt-3 space-y-2">
+                            <button
+                                onClick={() => handleNavigate('/profile')}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg"
+                            >
+                                <Icon icon="lucide:user" className="text-zinc-500" />
+                                <span className="text-sm font-medium text-zinc-700 truncate">{userEmail}</span>
+                            </button>
+
                         </div>
                     </div>
                 </div>

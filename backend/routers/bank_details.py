@@ -4,6 +4,7 @@ from sqlalchemy import text
 from schemas import BankDetailsResponse, BankDetailsUpdateRequest, GenericResponse
 from database import get_db
 from models import BankDetail, Vendor
+from email_service import send_update_notification
 
 router = APIRouter()
 
@@ -53,6 +54,9 @@ async def update_bank_details(
 ):
     """Update bank details"""
     try:
+        updated_fields = {}
+        user_name = ""
+        
         # Update bank details
         bank_detail = db.query(BankDetail).filter(BankDetail.vendor_id == vendor_id).first()
         
@@ -61,12 +65,17 @@ async def update_bank_details(
         
         if request.sortCode:
             bank_detail.sort_code = request.sortCode
+            updated_fields['Sort Code'] = request.sortCode
         if request.accountNumber:
             bank_detail.account_number = request.accountNumber
+            updated_fields['Account Number'] = request.accountNumber
         if request.accountHolder:
             bank_detail.account_holder_name = request.accountHolder
+            updated_fields['Account Holder Name'] = request.accountHolder
+            user_name = request.accountHolder
         if request.paymentMethod:
             bank_detail.payment_method = request.paymentMethod
+            updated_fields['Payment Method'] = request.paymentMethod
         
         # Update vendor email and mobile if provided
         if request.email or request.mobile:
@@ -74,10 +83,23 @@ async def update_bank_details(
             if vendor:
                 if request.email:
                     vendor.email = request.email
+                    updated_fields['Email'] = request.email
                 if request.mobile:
                     vendor.mobile = request.mobile
+                    updated_fields['Mobile Number'] = request.mobile
+                if not user_name:
+                    user_name = f"{vendor.first_name} {vendor.last_name}"
         
         db.commit()
+        
+        # Send email notification
+        if updated_fields:
+            await send_update_notification(
+                grantor_number=vendor_id,
+                update_type="Bank Details",
+                updated_fields=updated_fields,
+                user_name=user_name
+            )
         
         return GenericResponse(
             success=True,

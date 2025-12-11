@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     
+    # Email
+    smtp_host: str = "smtp.office365.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    notification_email: str = "rishitha.jaligam@nxzen.com"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

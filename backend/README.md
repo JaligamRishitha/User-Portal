@@ -168,9 +168,9 @@ http://localhost:8000/docs
 
 ## Default Credentials
 
-- Username: `admin`
-- Password: `admin`
-- Vendor ID: `5000000061`
+- Email: `farm@boltonfarms.co.uk`
+- Password: `Test@123`
+- Vendor ID: `5000000061` (Grantor Number)
 
 ## Development
 
