@@ -1,6 +1,8 @@
 -- UKPN Power Portal Database Schema
 
 -- Drop tables if they exist (for clean setup)
+DROP TABLE IF EXISTS remittance_documents CASCADE;
+DROP TABLE IF EXISTS moving_house_notifications CASCADE;
 DROP TABLE IF EXISTS payment_schedule_items CASCADE;
 DROP TABLE IF EXISTS payment_schedule_headers CASCADE;
 DROP TABLE IF EXISTS payment_history CASCADE;
@@ -124,12 +126,47 @@ CREATE TABLE payment_schedule_items (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Moving House Notifications Table
+CREATE TABLE moving_house_notifications (
+    id SERIAL PRIMARY KEY,
+    vendor_id VARCHAR(20) REFERENCES vendors(vendor_id) ON DELETE CASCADE,
+    old_address TEXT NOT NULL,
+    old_postcode VARCHAR(20) NOT NULL,
+    new_address TEXT NOT NULL,
+    new_postcode VARCHAR(20) NOT NULL,
+    new_owner_name VARCHAR(255) NOT NULL,
+    new_owner_email VARCHAR(255) NOT NULL,
+    new_owner_mobile VARCHAR(20) NOT NULL,
+    submission_date TIMESTAMP NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Remittance Documents Table
+CREATE TABLE remittance_documents (
+    id SERIAL PRIMARY KEY,
+    vendor_id VARCHAR(20) REFERENCES vendors(vendor_id) ON DELETE CASCADE,
+    fiscal_year VARCHAR(10) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_data BYTEA NOT NULL,
+    mime_type VARCHAR(100) DEFAULT 'application/pdf',
+    file_size INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_vendors_email ON vendors(email);
 CREATE INDEX idx_payment_history_vendor ON payment_history(vendor_id);
 CREATE INDEX idx_payment_history_date ON payment_history(posting_date);
 CREATE INDEX idx_payment_schedule_vendor ON payment_schedule_headers(vendor_id);
 CREATE INDEX idx_payment_schedule_items_agreement ON payment_schedule_items(agreement_number);
+CREATE INDEX idx_moving_house_vendor ON moving_house_notifications(vendor_id);
+CREATE INDEX idx_moving_house_status ON moving_house_notifications(status);
+CREATE INDEX idx_remittance_vendor ON remittance_documents(vendor_id);
+CREATE INDEX idx_remittance_fiscal_year ON remittance_documents(fiscal_year);
+CREATE INDEX idx_remittance_vendor_year ON remittance_documents(vendor_id, fiscal_year);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -154,4 +191,10 @@ CREATE TRIGGER update_payment_schedule_headers_updated_at BEFORE UPDATE ON payme
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_payment_schedule_items_updated_at BEFORE UPDATE ON payment_schedule_items
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_moving_house_notifications_updated_at BEFORE UPDATE ON moving_house_notifications
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_remittance_documents_updated_at BEFORE UPDATE ON remittance_documents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

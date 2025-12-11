@@ -17,7 +17,7 @@ async def get_payment_history(
     try:
         query_str = """
             SELECT 
-                ph.document_number as "agreementNumber",
+                ph.purchase_order as "agreementNumber",
                 v.first_name as "firstName",
                 v.last_name as "lastName",
                 ph.payment_method as "paymentType",

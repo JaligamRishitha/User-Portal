@@ -108,6 +108,27 @@ class AgreementBreakdownResponse(BaseModel):
     success: bool
     data: dict
 
+# Remittance Document Schemas
+class RemittanceDocumentUploadResponse(BaseModel):
+    success: bool
+    message: str
+    data: dict
+
+class RemittanceDocumentInfo(BaseModel):
+    id: int
+    fiscal_year: str
+    file_name: str
+    file_size: int
+    created_at: datetime
+
+class RemittanceDocumentsResponse(BaseModel):
+    success: bool
+    documents: List[RemittanceDocumentInfo]
+
+class RemittanceYearsResponse(BaseModel):
+    success: bool
+    years: List[str]
+
 # Generic Response
 class GenericResponse(BaseModel):
     success: bool

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Numeric, Date, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Numeric, Date, DateTime, ForeignKey, Text, LargeBinary
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -140,3 +140,19 @@ class PaymentScheduleItem(Base):
     
     # Relationships
     header = relationship("PaymentScheduleHeader", back_populates="items")
+
+class RemittanceDocument(Base):
+    __tablename__ = "remittance_documents"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vendor_id = Column(String(20), ForeignKey("vendors.vendor_id", ondelete="CASCADE"))
+    fiscal_year = Column(String(10), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_data = Column(Text, nullable=False)  # Base64 encoded
+    mime_type = Column(String(100), default="application/pdf")
+    file_size = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    vendor = relationship("Vendor")

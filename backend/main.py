@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, users, bank_details, payment_history, upcoming_payments
+from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance
 
 app = FastAPI(
     title="UKPN Power Portal API",
@@ -23,6 +23,8 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(bank_details.router, prefix="/api/bank-details", tags=["Bank Details"])
 app.include_router(payment_history.router, prefix="/api/payment-history", tags=["Payment History"])
 app.include_router(upcoming_payments.router, prefix="/api/upcoming-payments", tags=["Upcoming Payments"])
+app.include_router(moving_house.router, prefix="/api", tags=["Moving House"])
+app.include_router(remittance.router, prefix="/api", tags=["Remittance"])
 
 @app.get("/api/health")
 async def health_check():

@@ -10,20 +10,15 @@ const Home = () => {
         <div className="space-y-8 pb-10">
             {/* Hero */}
             <FadeInWhenVisible>
-                <div className="relative overflow-hidden rounded-3xl bg-zinc-900 p-8 sm:p-12 shadow-2xl border border-zinc-700 group">
+                <div className="relative overflow-hidden rounded-3xl  p-8 sm:p-12 shadow-2xl">
                     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
                     <div className="absolute -right-20 -top-20 w-96 h-96 bg-orange-500/20 rounded-full blur-[100px] animate-pulse"></div>
                     <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-red-600/10 rounded-full blur-[80px]"></div>
 
                     <div className="relative z-10">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-orange-200 text-xs font-semibold mb-6 border border-white/5 backdrop-blur-md">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            System Operational
-                        </div>
-                        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white mb-4">
-                            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-200">{user.firstName}</span>
-                        </h1>
-                        <p className="text-zinc-400 text-lg max-w-2xl leading-relaxed">Manage your property consents, track payments, and update your details.</p>
+
+
+                        <p className="text-dark text-lg max-w-2xl leading-relaxed">Manage your property consents, track payments, and update your details.</p>
                     </div>
                 </div>
             </FadeInWhenVisible>

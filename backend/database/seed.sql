@@ -65,22 +65,4 @@ INSERT INTO payment_schedule_items (
     '2025-03-20', 1.000, 51.94, 80.49, 0.0, 'GBP'
 );
 
--- Add more sample data for testing
-INSERT INTO payment_history (
-    vendor_id, company_code, fiscal_year, clearing_doc, document_number, reference_doc,
-    gross_amount, net_amount, tax_amount, tax_code, tax_text, purchase_order, document_type,
-    posting_date, document_date, doc_type, rental_amount, compensation_amount, lease_amount,
-    cheque_number, payment_date, payment_method, payment_amount, encashment_date
-) VALUES 
-(
-    '5000000061', '1700', '2023', '2000026152', '5110702088', '5110702088',
-    250.00, 250.00, 0.0, 'V0', 'Exempt from input VAT', '1000000121', 'ZWLA',
-    '2023-10-11', '2023-10-11', 'YW', 150.00, 100.00, 0.0,
-    '257578', '2023-10-12', 'BACS', 250.00, '2023-10-25'
-),
-(
-    '5000000061', '1700', '2023', '2000026153', '5110702089', '5110702089',
-    275.50, 275.50, 0.0, 'V0', 'Exempt from input VAT', '1000000121', 'ZWLA',
-    '2023-10-12', '2023-10-12', 'YW', 175.50, 100.00, 0.0,
-    '257579', '2023-10-13', 'BACS', 275.50, '2023-10-26'
-);
+
