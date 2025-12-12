@@ -389,7 +389,8 @@ async def get_remittance_documents(fiscal_year: int, db: Session = Depends(get_d
                 document_url,
                 document_type,
                 upload_date,
-                created_at
+                created_at,
+                postcode
             FROM remittance_reports
             WHERE fiscal_year = :fiscal_year
             ORDER BY created_at DESC
@@ -406,7 +407,8 @@ async def get_remittance_documents(fiscal_year: int, db: Session = Depends(get_d
                 "document_url": row[3],
                 "document_type": row[4],
                 "upload_date": row[5].isoformat() if row[5] else None,
-                "created_at": row[6].isoformat() if row[6] else None
+                "created_at": row[6].isoformat() if row[6] else None,
+                "postcode": row[7]
             })
         
         # Get count

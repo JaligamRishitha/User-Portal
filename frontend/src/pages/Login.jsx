@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import Icon from '../components/Icon';
+import { MdEmail, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import ukpnLogo from '../assets/images/ukpn-logo.png';
 import { authAPI } from '../services/api';
 
@@ -82,7 +82,7 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-network relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-zinc-50 via-orange-50/20 to-zinc-50">
             {/* Background Effects */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
                 <svg className="absolute w-full h-full opacity-[0.03]" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -94,7 +94,7 @@ const Login = () => {
             </div>
 
             {/* Login Card */}
-            <div className="w-full max-w-2xl relative z-10">
+            <div className="w-full max-w-2xl relative z-10 mt-10 ">
                 <div className="glass-panel rounded-2xl shadow-2xl border-t-4 border-orange-500 overflow-hidden">
                     {/* Header */}
                     <div className="bg-gradient-to-br from-orange-500 to-red-600 px-8 py-6 text-white relative overflow-hidden">
@@ -121,7 +121,7 @@ const Login = () => {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                                            <Icon icon="lucide:mail" className="text-lg" />
+                                            <MdEmail className="text-xl" />
                                         </div>
                                         <input
                                             id="email"
@@ -141,7 +141,7 @@ const Login = () => {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                                            <Icon icon="lucide:landmark" className="text-lg" />
+                                            <MdLock className="text-xl" />
                                         </div>
                                         <input
                                             id="password"
@@ -156,7 +156,7 @@ const Login = () => {
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-orange-600 transition-colors"
                                         >
-                                            <span className="text-sm">{showPassword ? '👁️' : '👁️‍🗨️'}</span>
+                                            {showPassword ? <MdVisibilityOff className="text-xl" /> : <MdVisibility className="text-xl" />}
                                         </button>
                                     </div>
                                 </div>

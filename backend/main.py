@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance, admin, ocr, reports
+from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance, admin, ocr, reports, user_agreement
 import os
 
 app = FastAPI(
@@ -22,6 +22,7 @@ app.add_middleware(
 # Create documents directory if it doesn't exist
 os.makedirs("documents/geographical", exist_ok=True)
 os.makedirs("documents/remittance", exist_ok=True)
+os.makedirs("documents/user_agreements", exist_ok=True)
 
 # Mount static files for document serving
 app.mount("/documents", StaticFiles(directory="documents"), name="documents")
@@ -37,6 +38,7 @@ app.include_router(remittance.router, prefix="/api", tags=["Remittance"])
 app.include_router(admin.router, prefix="/api", tags=["Admin"])
 app.include_router(ocr.router, prefix="/api", tags=["OCR"])
 app.include_router(reports.router, prefix="/api", tags=["Reports"])
+app.include_router(user_agreement.router, tags=["User Agreement"])
 
 @app.get("/api/health")
 async def health_check():

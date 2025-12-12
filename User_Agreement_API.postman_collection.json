@@ -1,0 +1,87 @@
+{
+    "info": {
+        "name": "User Agreement API",
+        "description": "API endpoints for managing user agreements",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Upload User Agreement",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "file",
+                            "type": "file",
+                            "src": "/path/to/your/agreement.pdf",
+                            "description": "User agreement document (PDF, DOC, DOCX)"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "http://localhost:8000/api/user-agreement/upload/5000000061",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "api",
+                        "user-agreement",
+                        "upload",
+                        "5000000061"
+                    ]
+                },
+                "description": "Upload a user agreement document for a specific vendor. Replace '5000000061' with the actual vendor ID."
+            },
+            "response": []
+        },
+        {
+            "name": "Get User Agreement",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "http://localhost:8000/api/user-agreement/5000000061",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "api",
+                        "user-agreement",
+                        "5000000061"
+                    ]
+                },
+                "description": "Get the user agreement URL for a specific vendor"
+            },
+            "response": []
+        },
+        {
+            "name": "Delete User Agreement",
+            "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                    "raw": "http://localhost:8000/api/user-agreement/5000000061",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "api",
+                        "user-agreement",
+                        "5000000061"
+                    ]
+                },
+                "description": "Delete the user agreement for a specific vendor"
+            },
+            "response": []
+        }
+    ]
+}

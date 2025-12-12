@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { MdHome, MdDocumentScanner, MdViewList } from 'react-icons/md';
 
 const AdminLayout = ({ children }) => {
     const navigate = useNavigate();
@@ -45,22 +46,41 @@ const AdminLayout = ({ children }) => {
                             </div>
                         </button>
 
-                        {/* Right Side */}
+                        {/* Right Side with Navigation Tabs */}
                         <div className="flex items-center gap-4">
-                            {!isHomePage && (
+                            {/* Navigation Tabs */}
+                            <nav className="hidden md:flex items-center gap-2">
                                 <button
                                     onClick={() => navigate('/admin')}
-                                    className="hidden sm:flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-100"
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${location.pathname === '/admin'
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : 'text-zinc-600 hover:bg-zinc-100'
+                                        }`}
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                                    </svg>
-                                    Back to Dashboard
+                                    <MdHome className="text-base" />
+                                    Home
                                 </button>
-                            )}
+                                <button
+                                    onClick={() => window.open('http://149.102.158.71:2101/', '_blank')}
+                                    className="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 text-zinc-600 hover:bg-zinc-100"
+                                >
+                                    <MdDocumentScanner className="text-base" />
+                                    OCR
+                                </button>
+                                <button
+                                    onClick={() => navigate('/admin/console')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${location.pathname === '/admin/console'
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : 'text-zinc-600 hover:bg-zinc-100'
+                                        }`}
+                                >
+                                    <MdViewList className="text-base" />
+                                    Request Console
+                                </button>
+                            </nav>
                             <button
                                 onClick={handleLogout}
-                                className="hidden sm:flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-100"
+                                className="hidden sm:flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-100"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -68,7 +88,7 @@ const AdminLayout = ({ children }) => {
                                 Logout
                             </button>
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-zinc-600">Admin</span>
+                                <span className="text-sm font-medium text-zinc-600">Admin</span>
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-100 to-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

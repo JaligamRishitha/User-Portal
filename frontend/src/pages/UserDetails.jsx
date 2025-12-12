@@ -9,6 +9,7 @@ const UserDetails = () => {
     const [selectedFields, setSelectedFields] = useState([]);
     const [reasons, setReasons] = useState({});
     const [loading, setLoading] = useState(true);
+    const [userAgreementUrl, setUserAgreementUrl] = useState(null);
     const [formData, setFormData] = useState({
         grantorNumber: "",
         name: "",
@@ -28,6 +29,13 @@ const UserDetails = () => {
         try {
             setLoading(true);
             const response = await userAPI.getDetails(vendorId);
+
+            // Fetch user agreement
+            const agreementResponse = await fetch(`http://localhost:8000/api/user-agreement/${vendorId}`);
+            const agreementData = await agreementResponse.json();
+            if (agreementData.success && agreementData.has_agreement) {
+                setUserAgreementUrl(agreementData.file_url);
+            }
             if (response.success) {
                 setFormData(response.data);
             }
@@ -152,8 +160,16 @@ const UserDetails = () => {
                         </div>
                         <LabelValue label="Address" value={formData.address} />
 
-                        <div className="pt-3 flex justify-end">
-                            <button onClick={() => setStep(1)} className="px-6 py-2 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors shadow-md">
+                        <div className="pt-3 flex justify-between items-center gap-3">
+                            {userAgreementUrl && (
+                                <button
+                                    onClick={() => window.open(`http://localhost:8000${userAgreementUrl}`, '_blank')}
+                                    className="px-6 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors shadow-md whitespace-nowrap"
+                                >
+                                    User Agreement
+                                </button>
+                            )}
+                            <button onClick={() => setStep(1)} className="px-6 py-2 bg-zinc-900 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors shadow-md ml-auto whitespace-nowrap">
                                 Update Details
                             </button>
                         </div>

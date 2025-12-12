@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Swal from 'sweetalert2';
 
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
 const ReportsMap = () => {
-    const [reportType, setReportType] = useState('geographical'); // 'geographical' or 'remittance'
+    const [reportType, setReportType] = useState('geographical');
     const [searchQuery, setSearchQuery] = useState("");
-    const [hasSearched, setHasSearched] = useState(false);
+    const [hasSearched, setHasSearched] = useState(true);
     const [loading, setLoading] = useState(false);
     const [documents, setDocuments] = useState([]);
     const [documentCount, setDocumentCount] = useState(0);
     const [location, setLocation] = useState({ latitude: 51.5074, longitude: -0.1278 });
     const [viewingDoc, setViewingDoc] = useState(null);
-
-    const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    const [showDocumentList, setShowDocumentList] = useState(false);
+    const [locations, setLocations] = useState([]); // Multiple locations for remittance reports
+    const [selectedLocation, setSelectedLocation] = useState(null);
 
     const mapContainerStyle = {
         width: '100%',
@@ -55,6 +57,39 @@ const ReportsMap = () => {
                 setDocumentCount(data.count);
                 if (reportType === 'geographical' && data.location) {
                     setLocation(data.location);
+                } else if (reportType === 'remittance') {
+                    // Group documents by postcode and get locations
+                    const uniquePostcodes = [...new Set(data.documents.map(doc => doc.postcode).filter(Boolean))];
+                    console.log('Unique postcodes:', uniquePostcodes);
+
+                    if (uniquePostcodes.length > 0) {
+                        const locs = await Promise.all(
+                            uniquePostcodes.map(async (postcode) => {
+                                try {
+                                    const geoResponse = await fetch(`http://localhost:8000/api/admin/reports/geographical/${postcode}`);
+                                    const geoData = await geoResponse.json();
+                                    console.log(`Location for ${postcode}:`, geoData);
+                                    return {
+                                        postcode,
+                                        latitude: geoData.location.latitude,
+                                        longitude: geoData.location.longitude,
+                                        documents: data.documents.filter(doc => doc.postcode === postcode)
+                                    };
+                                } catch (err) {
+                                    console.error(`Error fetching location for ${postcode}:`, err);
+                                    return null;
+                                }
+                            })
+                        );
+                        const validLocs = locs.filter(Boolean);
+                        console.log('Valid locations:', validLocs);
+                        setLocations(validLocs);
+                        if (validLocs.length > 0) {
+                            setLocation({ latitude: validLocs[0].latitude, longitude: validLocs[0].longitude });
+                        }
+                    } else {
+                        setLocations([]);
+                    }
                 }
             } else {
                 throw new Error('Failed to fetch documents');
@@ -75,15 +110,17 @@ const ReportsMap = () => {
     };
 
     const handleToggle = () => {
-        setReportType(reportType === 'geographical' ? 'remittance' : 'geographical');
+        const newType = reportType === 'geographical' ? 'remittance' : 'geographical';
+        setReportType(newType);
         setSearchQuery("");
-        setHasSearched(false);
+        setHasSearched(true); // Always show map for both types
         setDocuments([]);
         setDocumentCount(0);
+        setLocations([]); // Reset locations
     };
 
     return (
-        <div className={`w-full max-w-7xl mx-auto h-full flex flex-col animate-fade-in p-6 ${!hasSearched || documents.length === 0 ? 'pb-96' : 'pb-24'}`}>
+        <div className="w-full max-w-7xl mx-auto flex flex-col animate-fade-in p-6 overflow-y-auto" style={{ minHeight: 'calc(100vh - 10rem)' }}>
             {/* Header with Toggle */}
             <div className="mb-6 flex flex-col items-center">
                 <div className="flex items-center gap-4 mb-4">
@@ -107,9 +144,9 @@ const ReportsMap = () => {
                     </h2>
                 </div>
 
-                {/* Search Form */}
+                {/* Dropdown Form */}
                 <form onSubmit={handleSearch} className="relative w-full max-w-lg group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                         <svg className="w-5 h-5 text-zinc-400 group-focus-within:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             {reportType === 'geographical' ? (
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -118,17 +155,32 @@ const ReportsMap = () => {
                             )}
                         </svg>
                     </div>
-                    <input
-                        type="text"
-                        className="block w-full pl-11 pr-4 py-3 bg-white/80 backdrop-blur-sm border border-zinc-200 rounded-xl leading-5 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 sm:text-sm shadow-sm transition-all"
-                        placeholder={reportType === 'geographical' ? 'Enter Postcode (e.g. SW1A 1AA)' : 'Enter Fiscal Year (e.g. 2023)'}
+                    <select
+                        className="block w-full pl-11 pr-4 py-3 bg-white/80 backdrop-blur-sm border border-zinc-200 rounded-xl leading-5 text-zinc-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 sm:text-sm shadow-sm transition-all appearance-none cursor-pointer"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                    >
+                        <option value="">
+                            {reportType === 'geographical' ? 'Select Postcode' : 'Select Fiscal Year'}
+                        </option>
+                        {reportType === 'geographical' ? (
+                            <>
+                                <option value="TN255HW">TN25 5HW</option>
+                                <option value="RH158NB">RH15 8NB</option>
+                                <option value="TN126HT">TN12 6HT</option>
+                                <option value="CM33DQ">CM3 3DQ</option>
+                            </>
+                        ) : (
+                            <>
+                                <option value="2023">2023</option>
+                                <option value="2024">2024</option>
+                            </>
+                        )}
+                    </select>
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="absolute inset-y-1.5 right-1.5 px-4 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
+                        disabled={loading || !searchQuery}
+                        className="absolute inset-y-1.5 right-1.5 px-4 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Loading...' : 'Generate'}
                     </button>
@@ -154,90 +206,153 @@ const ReportsMap = () => {
                     </p>
                 </div>
             ) : (
-                <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
-                    {/* Map View / Year Info */}
-                    <div className="lg:col-span-2 bg-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden relative shadow-inner group">
+                <div className="flex-1 overflow-hidden" style={{ minHeight: '600px' }}>
+                    {/* Map View / Year Info - Full Width */}
+                    <div className="bg-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden relative shadow-inner group w-full h-full" style={{ minHeight: '600px' }}>
                         {reportType === 'geographical' ? (
                             <>
-                                <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-                                    <GoogleMap
-                                        mapContainerStyle={mapContainerStyle}
-                                        center={{ lat: location.latitude, lng: location.longitude }}
-                                        zoom={15}
-                                        options={mapOptions}
-                                    >
-                                        <Marker
-                                            position={{ lat: location.latitude, lng: location.longitude }}
-                                            title={searchQuery}
-                                            animation={window.google?.maps?.Animation?.DROP}
-                                        />
-                                    </GoogleMap>
-                                </LoadScript>
-                                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm text-xs font-medium text-zinc-600 border border-zinc-200 z-10">
-                                    {searchQuery} - {documentCount} document{documentCount !== 1 ? 's' : ''} found
-                                </div>
-                                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm text-xs font-medium text-zinc-600 border border-zinc-200 z-10">
-                                    {location.latitude.toFixed(4)}° N, {location.longitude.toFixed(4)}° W
-                                </div>
-                            </>
-                        ) : (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
-                                <div className="text-center">
-                                    <div className="text-6xl font-bold text-orange-600 mb-4">{searchQuery}</div>
-                                    <div className="text-xl text-zinc-600 mb-8">Fiscal Year</div>
-                                    <div className="grid grid-cols-2 gap-6 max-w-md">
-                                        <div className="bg-white/90 backdrop-blur rounded-xl p-6 border border-zinc-200 shadow-sm">
-                                            <div className="text-3xl font-bold text-zinc-900">{documentCount}</div>
-                                            <div className="text-sm text-zinc-500 mt-1">Documents</div>
-                                        </div>
-                                        <div className="bg-white/90 backdrop-blur rounded-xl p-6 border border-zinc-200 shadow-sm">
-                                            <div className="text-3xl font-bold text-green-600">✓</div>
-                                            <div className="text-sm text-zinc-500 mt-1">Available</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Documents Sidebar */}
-                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-zinc-200 flex flex-col overflow-hidden shadow-sm h-full">
-                        <div className="p-4 border-b border-zinc-100 bg-zinc-50/50">
-                            <h3 className="font-semibold text-zinc-900">
-                                {reportType === 'geographical' ? 'Reports Found' : 'Remittance Reports Available'}
-                            </h3>
-                            <p className="text-xs text-zinc-500 mt-1">{documentCount} document{documentCount !== 1 ? 's' : ''}</p>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                            {documents.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-zinc-400 p-8">
-                                    <svg className="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <p className="text-sm">No documents found</p>
-                                </div>
-                            ) : (
-                                documents.map((doc) => (
-                                    <div
-                                        key={doc.id}
-                                        onClick={() => setViewingDoc(doc)}
-                                        className="group flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 border border-transparent hover:border-orange-100 cursor-pointer transition-all"
-                                    >
-                                        <div className="w-10 h-10 rounded-lg bg-zinc-100 group-hover:bg-white text-zinc-400 group-hover:text-red-500 flex items-center justify-center border border-zinc-200/50">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-medium text-zinc-700 truncate">{doc.document_name}</h4>
-                                            <div className="text-[10px] text-zinc-400">
-                                                {new Date(doc.created_at).toLocaleDateString()}
+                                <iframe
+                                    width="100%"
+                                    height="600"
+                                    style={{ border: 0, minHeight: '600px', height: '100%' }}
+                                    loading="lazy"
+                                    allowFullScreen
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                    src={searchQuery
+                                        ? `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${location.latitude},${location.longitude}&zoom=15&maptype=roadmap`
+                                        : `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`
+                                    }
+                                />
+                                {searchQuery && documents.length > 0 && (
+                                    <>
+                                        {/* Document List Popup - Near Marker (Always Visible) */}
+                                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full mb-16 bg-white/95 backdrop-blur rounded-xl shadow-xl border border-zinc-200 z-10 max-w-xs animate-fade-in">
+                                            <div className="p-3 border-b border-zinc-200 bg-red-50">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+                                                    <div>
+                                                        <h3 className="text-sm font-semibold text-zinc-900">{searchQuery}</h3>
+                                                        <p className="text-xs text-zinc-500">{documentCount} document{documentCount !== 1 ? 's' : ''} found</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto">
+                                                {documents.map((doc, index) => (
+                                                    <button
+                                                        key={doc.id}
+                                                        onClick={() => window.open(`http://localhost:8000${doc.document_url}`, '_blank')}
+                                                        className="w-full text-left p-3 hover:bg-orange-50 border-b border-zinc-100 last:border-b-0 transition-colors group"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="text-xs font-medium text-zinc-900 truncate group-hover:text-orange-600">{doc.document_name}</h4>
+                                                                <p className="text-[10px] text-zinc-500">{new Date(doc.created_at).toLocaleDateString()}</p>
+                                                            </div>
+                                                            <svg className="w-4 h-4 text-zinc-400 group-hover:text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                            </svg>
+                                                        </div>
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
+                                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm text-xs font-medium text-zinc-600 border border-zinc-200 z-10">
+                                            {searchQuery ? `${location.latitude.toFixed(4)}° N, ${location.longitude.toFixed(4)}° W` : 'London, UK'}
+                                        </div>
+                                    </>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <iframe
+                                    width="100%"
+                                    height="600"
+                                    style={{ border: 0, minHeight: '600px', height: '100%' }}
+                                    loading="lazy"
+                                    allowFullScreen
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                    src={searchQuery
+                                        ? `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=12&maptype=roadmap`
+                                        : `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`
+                                    }
+                                />
+                                {searchQuery && locations.length > 0 && (
+                                    <>
+                                        {/* Multiple Location Markers with Popup Boxes */}
+                                        {locations.map((loc, index) => {
+                                            const markerTop = 25 + (index * 25);
+                                            const markerLeft = 20 + (index * 15);
+
+                                            return (
+                                                <div key={loc.postcode} className="absolute z-10" style={{ top: `${markerTop}%`, left: `${markerLeft}%` }}>
+                                                    {/* Marker Pin */}
+                                                    <div className="relative flex items-start gap-3">
+                                                        {/* Pin Icon */}
+                                                        <div className="flex flex-col items-center">
+                                                            <div className="relative">
+                                                                <svg className="w-10 h-10 text-blue-600 drop-shadow-lg animate-bounce" style={{ animationDuration: '2s' }} fill="currentColor" viewBox="0 0 24 24">
+                                                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                                                                </svg>
+                                                                <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white rounded-full"></div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Popup Box */}
+                                                        <div className="bg-white/95 backdrop-blur rounded-xl shadow-2xl border-2 border-blue-500 max-w-xs animate-fade-in">
+                                                            <div className="p-3 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-blue-100">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
+                                                                    <div>
+                                                                        <h3 className="text-sm font-bold text-zinc-900">{loc.postcode}</h3>
+                                                                        <p className="text-xs text-zinc-600">{loc.documents.length} document{loc.documents.length !== 1 ? 's' : ''}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="max-h-48 overflow-y-auto">
+                                                                {loc.documents.map((doc) => (
+                                                                    <button
+                                                                        key={doc.id}
+                                                                        onClick={() => window.open(`http://localhost:8000${doc.document_url}`, '_blank')}
+                                                                        className="w-full text-left p-2.5 hover:bg-orange-50 border-b border-zinc-100 last:border-b-0 transition-all group"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                                </svg>
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <h4 className="text-xs font-medium text-zinc-900 truncate group-hover:text-orange-600">{doc.document_name}</h4>
+                                                                            </div>
+                                                                            <svg className="w-4 h-4 text-zinc-400 group-hover:text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-lg text-sm font-semibold text-zinc-700 border-2 border-blue-400 z-10">
+                                            📍 FY {searchQuery}: {locations.length} location{locations.length !== 1 ? 's' : ''}
+                                        </div>
+                                    </>
+                                )}
+                                {searchQuery && documents.length > 0 && locations.length === 0 && (
+                                    <div className="absolute top-4 left-4 bg-red-100 border border-red-300 px-3 py-2 rounded-lg text-xs text-red-700">
+                                        No postcodes found for documents
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             )}

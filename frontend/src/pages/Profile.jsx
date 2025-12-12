@@ -30,12 +30,7 @@ const Profile = () => {
                 setUserData(response.data);
             }
         } catch (error) {
-            Swal.fire({
-                title: 'Error',
-                text: 'Failed to load profile data',
-                icon: 'error',
-                confirmButtonColor: '#ea580c',
-            });
+            console.log('Error loading profile:', error);
         } finally {
             setLoading(false);
         }
@@ -126,7 +121,6 @@ const Profile = () => {
                                 </div>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
-
                                 <button
                                     onClick={handleLogout}
                                     className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md"

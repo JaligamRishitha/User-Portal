@@ -52,10 +52,9 @@ function AppContent() {
           <Route path="/moving" element={<MovingHouse />} />
 
           {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout><AdminHome /></AdminLayout>} />
+          <Route path="/admin" element={<AdminLayout><ReportsMap /></AdminLayout>} />
           <Route path="/admin/ocr" element={<AdminLayout><OCRScanner /></AdminLayout>} />
           <Route path="/admin/console" element={<AdminLayout><RequestConsole /></AdminLayout>} />
-          <Route path="/admin/reports" element={<AdminLayout><ReportsMap /></AdminLayout>} />
         </Routes>
       </main>
 
