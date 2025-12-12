@@ -1,30 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import Icon from './Icon';
+import { MdHome, MdPerson, MdAccountBalance, MdHistory, MdCalendarToday, MdBolt, MdLocalShipping, MdMenu, MdClose } from 'react-icons/md';
 import NavItem from './NavItem';
 import ukpnLogo from '../assets/images/ukpn-logo.png';
 
 const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [userEmail, setUserEmail] = useState('');
+    const [userName, setUserName] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
 
     useEffect(() => {
-        // Get user email from localStorage
+        // Get user first name from localStorage
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        setUserEmail(user.email || '');
+        setUserName(user.firstName || user.email || '');
     }, []);
 
     const menuItems = [
-        { id: '/', label: 'Home', icon: 'lucide:layout-dashboard' },
-        { id: '/details', label: 'User Details', icon: 'lucide:user' },
-        { id: '/bank', label: 'Bank Details', icon: 'lucide:landmark' },
-        { id: '/history', label: 'Payment History', icon: 'lucide:history' },
-        { id: '/upcoming', label: 'Upcoming Payments', icon: 'lucide:calendar' },
-        { id: '/pandc', label: 'P & C', icon: 'lucide:zap' },
-        { id: '/moving', label: 'Moving House', icon: 'lucide:truck' },
+        { id: '/', label: 'Home', icon: MdHome },
+        { id: '/details', label: 'User Details', icon: MdPerson },
+        { id: '/bank', label: 'Bank Details', icon: MdAccountBalance },
+        { id: '/history', label: 'Payment History', icon: MdHistory },
+        { id: '/upcoming', label: 'Upcoming Payments', icon: MdCalendarToday },
+        { id: '/pandc', label: 'P & C', icon: MdBolt },
+        { id: '/moving', label: 'Moving House', icon: MdLocalShipping },
     ];
 
     const handleNavigate = (path) => {
@@ -89,17 +89,17 @@ const Header = () => {
                         <div className="hidden sm:flex items-center gap-3">
                             <button
                                 onClick={() => handleNavigate('/profile')}
-                                className="flex items-center gap-2 px-3 py-2"
+                                className="flex items-center gap-2 px-3 py-2 group"
                             >
-                                <Icon icon="lucide:user" className="text-zinc-400 group-hover:text-orange-600 transition-colors" />
-                                <span className="text-sm font-medium text-zinc-600 group-hover:text-zinc-900 transition-colors max-w-[150px] truncate">{userEmail}</span>
+                                <MdPerson className="text-xl text-zinc-400 group-hover:text-orange-600 transition-colors" />
+                                <span className="text-sm font-medium text-zinc-600 group-hover:text-zinc-900 transition-colors max-w-[150px] truncate">{userName}</span>
                             </button>
 
                         </div>
 
                         {/* Mobile Menu Button */}
                         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-zinc-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
-                            <Icon icon={mobileMenuOpen ? "lucide:x" : "lucide:menu"} className="text-2xl" />
+                            {mobileMenuOpen ? <MdClose className="text-2xl" /> : <MdMenu className="text-2xl" />}
                         </button>
                     </div>
                 </div>
@@ -123,8 +123,8 @@ const Header = () => {
                                 onClick={() => handleNavigate('/profile')}
                                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg"
                             >
-                                <Icon icon="lucide:user" className="text-zinc-500" />
-                                <span className="text-sm font-medium text-zinc-700 truncate">{userEmail}</span>
+                                <MdPerson className="text-xl text-zinc-500" />
+                                <span className="text-sm font-medium text-zinc-700 truncate">{userName}</span>
                             </button>
 
                         </div>

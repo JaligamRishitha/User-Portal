@@ -1,5 +1,3 @@
-import Icon from './Icon';
-
 const NavItem = ({ item, active, onClick, mobile = false }) => {
     const baseClass = mobile
         ? "flex items-center gap-3 px-4 py-3 text-base font-medium rounded-xl transition-all"
@@ -13,12 +11,14 @@ const NavItem = ({ item, active, onClick, mobile = false }) => {
         ? "text-zinc-600 hover:bg-zinc-50"
         : "text-zinc-500 hover:text-orange-600 hover:bg-white/60";
 
+    const IconComponent = item.icon;
+
     return (
         <button
             onClick={() => onClick(item.id)}
             className={`${baseClass} ${active ? activeClass : inactiveClass}`}
         >
-            <Icon icon={item.icon} className={mobile ? "text-lg text-orange-500" : "text-base flex-shrink-0"} />
+            <IconComponent className={mobile ? "text-lg text-orange-500" : "text-base flex-shrink-0"} />
             <span className="whitespace-nowrap">{item.label}</span>
         </button>
     );

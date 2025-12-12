@@ -92,7 +92,7 @@ const Profile = () => {
     }
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 pb-40">
             <FadeInWhenVisible>
                 <div className="max-w-2xl mx-auto">
                     {/* Profile Header Card */}
@@ -125,84 +125,8 @@ const Profile = () => {
                                     Grantor ID: {userData.grantorNumber}
                                 </div>
                             </div>
-
-                            {/* User Details Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
-                                {/* Mobile Number */}
-                                <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-100">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
-                                            <Icon icon="lucide:smartphone" className="text-sm" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Mobile Number</p>
-                                            <p className="text-xs font-bold text-zinc-900">{userData.mobile || 'Not provided'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Telephone */}
-                                <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-100">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                            <Icon icon="lucide:phone" className="text-sm" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Telephone</p>
-                                            <p className="text-xs font-bold text-zinc-900">{userData.telephone || 'Not provided'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Email */}
-                                <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-100">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                                            <Icon icon="lucide:mail" className="text-sm" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Email Address</p>
-                                            <p className="text-xs font-bold text-zinc-900 truncate">{userData.email || 'Not provided'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Grantor Number */}
-                                <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-100">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                            <Icon icon="lucide:hash" className="text-sm" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Grantor Number</p>
-                                            <p className="text-xs font-bold text-zinc-900">{userData.grantorNumber}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Address Section */}
-                            <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-100 mb-3">
-                                <div className="flex items-start gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 flex-shrink-0">
-                                        <Icon icon="lucide:map-pin" className="text-sm" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-0.5">Address</p>
-                                        <p className="text-xs font-medium text-zinc-900 leading-relaxed">{userData.address || 'Not provided'}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Action Buttons */}
                             <div className="flex flex-col sm:flex-row gap-2">
-                                <button
-                                    onClick={() => navigate('/details')}
-                                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors shadow-md"
-                                >
-                                    <Icon icon="lucide:edit" className="text-sm" />
-                                    Edit Profile
-                                </button>
+
                                 <button
                                     onClick={handleLogout}
                                     className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md"

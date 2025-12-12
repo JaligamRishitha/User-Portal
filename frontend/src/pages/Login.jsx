@@ -29,6 +29,26 @@ const Login = () => {
         setLoading(true);
 
         try {
+            // Check if admin login
+            if (email === 'admin@ukpn.com' && password === 'Admin@123') {
+                localStorage.setItem('token', 'admin-token');
+                localStorage.setItem('isAdmin', 'true');
+                localStorage.setItem('user', JSON.stringify({ name: 'Administrator', email: 'admin@ukpn.com' }));
+
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Admin login successful',
+                    icon: 'success',
+                    confirmButtonColor: '#ea580c',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    navigate('/admin');
+                });
+                setLoading(false);
+                return;
+            }
+
             const response = await authAPI.login(email, password);
 
             if (response.success) {
@@ -36,6 +56,7 @@ const Login = () => {
                 localStorage.setItem('token', response.token);
                 localStorage.setItem('user', JSON.stringify(response.user));
                 localStorage.setItem('vendorId', response.user.id);
+                localStorage.removeItem('isAdmin');
 
                 Swal.fire({
                     title: 'Success!',

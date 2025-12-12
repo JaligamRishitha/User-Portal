@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     notification_email: str = "rishitha.jaligam@nxzen.com"
     
+    # OCR
+    ocr_api_key: str = "ocr_k-DvHxnw9FNzuyoqX5gBf453NZXL5E1LllrFevcHsXs"
+    
+    # Google Maps
+    google_maps_api_key: str = "AIzaSyCYH2Z1OoL1wOX2ik1UOKTR-YjM2QRMRYY"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

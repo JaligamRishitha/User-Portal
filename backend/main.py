@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance
+from fastapi.staticfiles import StaticFiles
+from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance, admin, ocr, reports
+import os
 
 app = FastAPI(
     title="UKPN Power Portal API",
@@ -17,6 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Create documents directory if it doesn't exist
+os.makedirs("documents/geographical", exist_ok=True)
+os.makedirs("documents/remittance", exist_ok=True)
+
+# Mount static files for document serving
+app.mount("/documents", StaticFiles(directory="documents"), name="documents")
+
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
@@ -25,6 +34,9 @@ app.include_router(payment_history.router, prefix="/api/payment-history", tags=[
 app.include_router(upcoming_payments.router, prefix="/api/upcoming-payments", tags=["Upcoming Payments"])
 app.include_router(moving_house.router, prefix="/api", tags=["Moving House"])
 app.include_router(remittance.router, prefix="/api", tags=["Remittance"])
+app.include_router(admin.router, prefix="/api", tags=["Admin"])
+app.include_router(ocr.router, prefix="/api", tags=["OCR"])
+app.include_router(reports.router, prefix="/api", tags=["Reports"])
 
 @app.get("/api/health")
 async def health_check():

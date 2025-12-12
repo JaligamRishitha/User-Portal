@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
@@ -10,14 +11,19 @@ import PaymentHistory from './pages/PaymentHistory';
 import UpcomingPayments from './pages/UpcomingPayments';
 import PandC from './pages/PandC';
 import MovingHouse from './pages/MovingHouse';
+import AdminHome from './pages/admin/AdminHome';
+import OCRScanner from './pages/admin/OCRScanner';
+import RequestConsole from './pages/admin/RequestConsole';
+import ReportsMap from './pages/admin/ReportsMap';
 
 function AppContent() {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+  const isAdminPage = location.pathname.startsWith('/admin');
 
   return (
-    <div className="text-zinc-700 font-sans bg-network selection:bg-orange-100 selection:text-orange-700 relative min-h-screen flex flex-col">
-      {!isLoginPage && (
+    <div className="text-zinc-700 font-sans bg-network selection:bg-orange-100 selection:text-orange-700 relative flex flex-col" style={{ minHeight: '100vh' }}>
+      {!isLoginPage && !isAdminPage && (
         <>
           {/* Background Effects */}
           <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -33,7 +39,7 @@ function AppContent() {
         </>
       )}
 
-      <main className={!isLoginPage ? "flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 relative z-10 pb-20" : "flex-1"}>
+      <main className={!isLoginPage && !isAdminPage ? "w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 relative z-10 pb-20" : "flex-1"}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Home />} />
@@ -44,10 +50,16 @@ function AppContent() {
           <Route path="/upcoming" element={<UpcomingPayments />} />
           <Route path="/pandc" element={<PandC />} />
           <Route path="/moving" element={<MovingHouse />} />
+
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLayout><AdminHome /></AdminLayout>} />
+          <Route path="/admin/ocr" element={<AdminLayout><OCRScanner /></AdminLayout>} />
+          <Route path="/admin/console" element={<AdminLayout><RequestConsole /></AdminLayout>} />
+          <Route path="/admin/reports" element={<AdminLayout><ReportsMap /></AdminLayout>} />
         </Routes>
       </main>
 
-      {!isLoginPage && <Footer />}
+      {!isLoginPage && !isAdminPage && <Footer />}
     </div>
   );
 }

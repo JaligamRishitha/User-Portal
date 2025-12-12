@@ -11,12 +11,27 @@ const PaymentHistory = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [availableYears, setAvailableYears] = useState([]);
 
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
     const vendorId = localStorage.getItem('vendorId') || '5000000061';
+
+    // Calculate pagination
+    const totalPages = Math.ceil(payments.length / rowsPerPage);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const paginatedPayments = payments.slice(startIndex, endIndex);
 
     useEffect(() => {
         fetchPaymentHistory();
         fetchAvailableYears();
     }, [selectedYear]);
+
+    // Reset to page 1 when payments change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [payments]);
 
     const fetchPaymentHistory = async () => {
         try {
@@ -140,7 +155,7 @@ const PaymentHistory = () => {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 animate-fade-in pb-40">
             <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Payment History</h2>
@@ -165,6 +180,19 @@ const PaymentHistory = () => {
                     >
                         Remittance Schedule
                     </button>
+                    <select
+                        value={rowsPerPage}
+                        onChange={(e) => {
+                            setRowsPerPage(Number(e.target.value));
+                            setCurrentPage(1);
+                        }}
+                        className="px-4 py-2.5 bg-white border border-zinc-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-orange-200 outline-none shadow-sm"
+                    >
+                        <option value="5">5 rows</option>
+                        <option value="10">10 rows</option>
+                        <option value="20">20 rows</option>
+                        <option value="50">50 rows</option>
+                    </select>
                 </div>
             </div>
 
@@ -189,14 +217,14 @@ const PaymentHistory = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100">
-                            {payments.length === 0 ? (
+                            {paginatedPayments.length === 0 ? (
                                 <tr>
                                     <td colSpan="13" className="px-4 py-8 text-center text-zinc-500">
                                         No payment history found
                                     </td>
                                 </tr>
                             ) : (
-                                payments.map((payment, index) => {
+                                paginatedPayments.map((payment, index) => {
                                     // Determine payment type display
                                     const paymentTypeDisplay = payment.paymentType === 'K' ? 'Cheque' : payment.paymentType || '-';
 
@@ -245,12 +273,36 @@ const PaymentHistory = () => {
                         </tbody>
                     </table>
                 </div>
+                <div className="px-6 py-3 border-t border-zinc-100 bg-zinc-50/30 flex justify-between items-center text-xs">
+                    <span className="text-zinc-500">
+                        Showing {startIndex + 1} to {Math.min(endIndex, payments.length)} of {payments.length} records
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 border border-zinc-200 rounded hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-zinc-600 px-2">
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="px-3 py-1 border border-zinc-200 rounded hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Remittance Schedule Modal */}
             {showRemittanceModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-zinc-900">Generate Remittance Schedule</h3>
                             <button
