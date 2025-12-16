@@ -90,7 +90,7 @@ const UpcomingPayments = () => {
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Upcoming Payments</h2>
-                    <p className="text-zinc-500 mt-1">Please click on the Agreement Number to view the granular-level breakdown.</p>
+                    <p className="text-zinc-500 mt-1">Please click on the Agreement Number to view the asset-level breakdown.</p>
                 </div>
                 <select
                     value={rowsPerPage}

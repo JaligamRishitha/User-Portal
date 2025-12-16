@@ -213,26 +213,41 @@ async def add_geographical_document(doc: GeographicalDocument, db: Session = Dep
 @router.get("/admin/reports/geographical/{postcode}")
 async def get_geographical_documents(postcode: str, db: Session = Depends(get_db)):
     """
-    Get all documents for a specific postcode
+    Get all documents for a specific postcode with user details
     """
     try:
         # Clean postcode
         clean_postcode = postcode.upper().replace(" ", "")
         
-        # Get documents for postcode
+        # Get documents for postcode joined with vendors table
+        # Handle null first_name or last_name - show only the available name
+        # Support partial postcode matching (geofencing) - e.g., "CM3" matches "CM33DQ", "CM330DQ", etc.
         query = text("""
             SELECT 
-                id,
-                postcode,
-                document_name,
-                document_url,
-                document_type,
-                latitude,
-                longitude,
-                created_at
-            FROM geographical_documents
-            WHERE postcode = :postcode
-            ORDER BY created_at DESC
+                gd.id,
+                gd.postcode,
+                gd.document_name,
+                gd.document_url,
+                gd.document_type,
+                gd.latitude,
+                gd.longitude,
+                gd.created_at,
+                gd.vendor_id,
+                v.first_name,
+                v.last_name,
+                CASE 
+                    WHEN v.first_name IS NOT NULL AND v.last_name IS NOT NULL 
+                        THEN CONCAT(v.first_name, ' ', v.last_name)
+                    WHEN v.first_name IS NOT NULL 
+                        THEN v.first_name
+                    WHEN v.last_name IS NOT NULL 
+                        THEN v.last_name
+                    ELSE NULL
+                END as full_name
+            FROM geographical_documents gd
+            LEFT JOIN vendors v ON gd.vendor_id = v.vendor_id
+            WHERE gd.postcode LIKE :postcode || '%'
+            ORDER BY gd.created_at DESC
         """)
         
         results = db.execute(query, {"postcode": clean_postcode}).fetchall()
@@ -247,24 +262,35 @@ async def get_geographical_documents(postcode: str, db: Session = Depends(get_db
                 "document_type": row[4],
                 "latitude": float(row[5]) if row[5] else None,
                 "longitude": float(row[6]) if row[6] else None,
-                "created_at": row[7].isoformat() if row[7] else None
+                "created_at": row[7].isoformat() if row[7] else None,
+                "vendor_id": row[8],
+                "first_name": row[9],
+                "last_name": row[10],
+                "full_name": row[11]  # Combined name handling nulls
             })
         
-        # Get count
+        # Get count with partial matching
         count_query = text("""
-            SELECT COUNT(*) FROM geographical_documents WHERE postcode = :postcode
+            SELECT COUNT(*) FROM geographical_documents WHERE postcode LIKE :postcode || '%'
         """)
         count = db.execute(count_query, {"postcode": clean_postcode}).fetchone()[0]
+        
+        # Calculate center point for multiple locations (average of all coordinates)
+        if documents and any(doc["latitude"] and doc["longitude"] for doc in documents):
+            valid_coords = [(doc["latitude"], doc["longitude"]) for doc in documents if doc["latitude"] and doc["longitude"]]
+            avg_lat = sum(lat for lat, _ in valid_coords) / len(valid_coords)
+            avg_lng = sum(lng for _, lng in valid_coords) / len(valid_coords)
+            center_location = {"latitude": avg_lat, "longitude": avg_lng}
+        else:
+            center_location = {"latitude": 51.5074, "longitude": -0.1278}
         
         return JSONResponse(content={
             "success": True,
             "postcode": postcode,
             "count": count,
             "documents": documents,
-            "location": {
-                "latitude": documents[0]["latitude"] if documents and documents[0]["latitude"] else 51.5074,
-                "longitude": documents[0]["longitude"] if documents and documents[0]["longitude"] else -0.1278
-            }
+            "location": center_location,
+            "is_partial_match": len(clean_postcode) < 6  # Indicate if this was a partial search
         })
         
     except Exception as e:
@@ -374,26 +400,118 @@ async def add_remittance_document(doc: RemittanceDocument, db: Session = Depends
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/admin/reports/remittance/search/{search_query}")
+async def search_remittance_documents(search_query: str, db: Session = Depends(get_db)):
+    """
+    Universal search for remittance documents
+    Search by: fiscal year, grantor number, grantor name, or postcode
+    """
+    try:
+        # Clean search query
+        clean_query = search_query.strip().upper()
+        
+        # Build flexible query that searches across multiple fields
+        # Support partial matching anywhere in the field (not just beginning)
+        query = text("""
+            SELECT 
+                rr.id,
+                rr.fiscal_year,
+                rr.document_name,
+                rr.document_url,
+                rr.document_type,
+                rr.upload_date,
+                rr.created_at,
+                rr.postcode,
+                rr.vendor_id,
+                v.first_name,
+                v.last_name,
+                CASE 
+                    WHEN v.first_name IS NOT NULL AND v.last_name IS NOT NULL 
+                        THEN CONCAT(v.first_name, ' ', v.last_name)
+                    WHEN v.first_name IS NOT NULL 
+                        THEN v.first_name
+                    WHEN v.last_name IS NOT NULL 
+                        THEN v.last_name
+                    ELSE NULL
+                END as grantor_name
+            FROM remittance_reports rr
+            LEFT JOIN vendors v ON rr.vendor_id = v.vendor_id
+            WHERE 
+                CAST(rr.fiscal_year AS TEXT) LIKE :query || '%'
+                OR rr.vendor_id LIKE '%' || :query || '%'
+                OR UPPER(v.first_name) LIKE '%' || :query || '%'
+                OR UPPER(v.last_name) LIKE '%' || :query || '%'
+                OR UPPER(CONCAT(v.first_name, ' ', v.last_name)) LIKE '%' || :query || '%'
+                OR rr.postcode LIKE '%' || :query || '%'
+            ORDER BY rr.created_at DESC
+        """)
+        
+        results = db.execute(query, {"query": clean_query}).fetchall()
+        
+        documents = []
+        for row in results:
+            documents.append({
+                "id": row[0],
+                "fiscal_year": row[1],
+                "document_name": row[2],
+                "document_url": row[3],
+                "document_type": row[4],
+                "upload_date": row[5].isoformat() if row[5] else None,
+                "created_at": row[6].isoformat() if row[6] else None,
+                "postcode": row[7],
+                "vendor_id": row[8],
+                "first_name": row[9],
+                "last_name": row[10],
+                "grantor_name": row[11]
+            })
+        
+        return JSONResponse(content={
+            "success": True,
+            "search_query": search_query,
+            "count": len(documents),
+            "documents": documents
+        })
+        
+    except Exception as e:
+        logger.error(f"Error searching remittance documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/admin/reports/remittance/{fiscal_year}")
 async def get_remittance_documents(fiscal_year: int, db: Session = Depends(get_db)):
     """
-    Get all remittance documents for a specific fiscal year
+    Get all remittance documents for a specific fiscal year with user details
+    (Legacy endpoint - use /search/ for flexible searching)
     """
     try:
-        # Get documents for fiscal year
+        # Get documents for fiscal year with full vendor details
+        # Handle null first_name or last_name - show only the available name
         query = text("""
             SELECT 
-                id,
-                fiscal_year,
-                document_name,
-                document_url,
-                document_type,
-                upload_date,
-                created_at,
-                postcode
-            FROM remittance_reports
-            WHERE fiscal_year = :fiscal_year
-            ORDER BY created_at DESC
+                rr.id,
+                rr.fiscal_year,
+                rr.document_name,
+                rr.document_url,
+                rr.document_type,
+                rr.upload_date,
+                rr.created_at,
+                rr.postcode,
+                rr.vendor_id,
+                v.first_name,
+                v.last_name,
+                CASE 
+                    WHEN v.first_name IS NOT NULL AND v.last_name IS NOT NULL 
+                        THEN CONCAT(v.first_name, ' ', v.last_name)
+                    WHEN v.first_name IS NOT NULL 
+                        THEN v.first_name
+                    WHEN v.last_name IS NOT NULL 
+                        THEN v.last_name
+                    ELSE NULL
+                END as grantor_name
+            FROM remittance_reports rr
+            LEFT JOIN vendors v ON rr.vendor_id = v.vendor_id
+            WHERE rr.fiscal_year = :fiscal_year
+            ORDER BY rr.created_at DESC
         """)
         
         results = db.execute(query, {"fiscal_year": fiscal_year}).fetchall()
@@ -408,7 +526,11 @@ async def get_remittance_documents(fiscal_year: int, db: Session = Depends(get_d
                 "document_type": row[4],
                 "upload_date": row[5].isoformat() if row[5] else None,
                 "created_at": row[6].isoformat() if row[6] else None,
-                "postcode": row[7]
+                "postcode": row[7],
+                "vendor_id": row[8],
+                "first_name": row[9],
+                "last_name": row[10],
+                "grantor_name": row[11]
             })
         
         # Get count

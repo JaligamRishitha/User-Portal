@@ -9,19 +9,6 @@ const Home = () => {
     return (
         <div className="space-y-8 pb-10">
             {/* Hero */}
-            <FadeInWhenVisible>
-                <div className="relative overflow-hidden rounded-3xl  p-8 sm:p-12 shadow-2xl">
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
-                    <div className="absolute -right-20 -top-20 w-96 h-96 bg-orange-500/20 rounded-full blur-[100px] animate-pulse"></div>
-                    <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-red-600/10 rounded-full blur-[80px]"></div>
-
-                    <div className="relative z-10">
-
-
-                        <p className="text-dark text-lg max-w-2xl leading-relaxed">Manage your property consents, track payments, and update your details.</p>
-                    </div>
-                </div>
-            </FadeInWhenVisible>
 
             {/* Services Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

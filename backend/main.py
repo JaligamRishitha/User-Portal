@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance, admin, ocr, reports, user_agreement
+from routers import auth, users, bank_details, payment_history, upcoming_payments, moving_house, remittance, admin, ocr, reports, user_agreement, wayleave
 import os
 
 app = FastAPI(
@@ -39,6 +39,7 @@ app.include_router(admin.router, prefix="/api", tags=["Admin"])
 app.include_router(ocr.router, prefix="/api", tags=["OCR"])
 app.include_router(reports.router, prefix="/api", tags=["Reports"])
 app.include_router(user_agreement.router, tags=["User Agreement"])
+app.include_router(wayleave.router, prefix="/api", tags=["Wayleave Agreements"])
 
 @app.get("/api/health")
 async def health_check():

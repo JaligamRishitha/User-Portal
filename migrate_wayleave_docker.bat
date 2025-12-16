@@ -1,0 +1,3 @@
+@echo off
+echo Creating wayleave_agreements table in PostgreSQL...
+docker-compose exec backend python -c "from database import engine; from sqlalchemy import text; sql = open('../create_wayleave_table_postgres.sql').read(); conn = engine.connect(); conn.execute(text(sql)); conn.commit(); print('Table created successfully')"

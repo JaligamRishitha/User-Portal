@@ -15,6 +15,7 @@ const RequestConsole = () => {
     // Filter and pagination states
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -23,7 +24,7 @@ const RequestConsole = () => {
         fetchStats();
     }, []);
 
-    // Apply filters whenever requests, filterType, or filterStatus changes
+    // Apply filters whenever requests, filterType, filterStatus, or searchQuery changes
     useEffect(() => {
         let filtered = [...requests];
 
@@ -37,9 +38,19 @@ const RequestConsole = () => {
             filtered = filtered.filter(req => req.status === filterStatus);
         }
 
+        // Filter by search query (Grantor Number or User Name)
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(req =>
+                req.vendor_id?.toLowerCase().includes(query) ||
+                req.user_name?.toLowerCase().includes(query) ||
+                `${req.first_name} ${req.last_name}`.toLowerCase().includes(query)
+            );
+        }
+
         setFilteredRequests(filtered);
         setCurrentPage(1); // Reset to first page when filters change
-    }, [requests, filterType, filterStatus]);
+    }, [requests, filterType, filterStatus, searchQuery]);
 
     // Calculate pagination
     const totalPages = Math.ceil(filteredRequests.length / rowsPerPage);
@@ -138,7 +149,7 @@ const RequestConsole = () => {
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white/80 backdrop-blur-xl border border-zinc-200 rounded-xl p-4">
-                    <p className="text-xs text-zinc-500 mb-1">Total Users</p>
+                    <p className="text-xs text-zinc-500 mb-1">Total Grantors</p>
                     <p className="text-2xl font-bold text-zinc-900">{stats.total_vendors}</p>
                 </div>
                 <div className="bg-white/80 backdrop-blur-xl border border-zinc-200 rounded-xl p-4">
@@ -155,7 +166,7 @@ const RequestConsole = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Request Console</h2>
-                    <p className="text-sm text-zinc-500 mt-1">Monitor user activity and manage incoming update requests.</p>
+                    <p className="text-sm text-zinc-500 mt-1">Monitor grantor activity and manage incoming update requests.</p>
                 </div>
                 <button
                     onClick={fetchRequests}
@@ -168,8 +179,22 @@ const RequestConsole = () => {
                 </button>
             </div>
 
-            {/* Filters */}
+            {/* Filters and Search */}
             <div className="flex flex-wrap gap-3 mb-6">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[250px]">
+                    <input
+                        type="text"
+                        placeholder="Search by Grantor Number or Grantor Name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2 pl-10 bg-white border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none"
+                    />
+                    <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+
                 <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
@@ -214,8 +239,8 @@ const RequestConsole = () => {
                     <table className="w-full text-left text-sm whitespace-nowrap">
                         <thead className="bg-zinc-50/50 border-b border-zinc-100">
                             <tr>
-                                <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Grantor No</th>
-                                <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">User</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Grantor Number</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Grantor Name</th>
                                 <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Activity Type</th>
                                 <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Details</th>
                                 <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Timestamp</th>

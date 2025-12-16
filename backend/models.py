@@ -156,3 +156,36 @@ class RemittanceDocument(Base):
     
     # Relationships
     vendor = relationship("Vendor")
+
+
+class WayleaveAgreement(Base):
+    __tablename__ = "wayleave_agreements"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    filename = Column(String(255))
+    
+    # Grantor Details
+    grantor_name = Column(String(255))
+    grantor_address = Column(Text)
+    grantor_postcode = Column(String(20))
+    grantor_telephone = Column(String(50))
+    grantor_email = Column(String(255))
+    
+    # Agreement Details
+    agreement_date = Column(String(100))
+    agreement_ref = Column(String(100))
+    tq_number = Column(String(100))
+    payment = Column(String(50))
+    duration = Column(String(50))
+    
+    # Wayleave Information
+    property_location = Column(Text)
+    works_description = Column(Text)
+    drawing_number = Column(String(100))
+    
+    # Full extracted text
+    extracted_text = Column(Text)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

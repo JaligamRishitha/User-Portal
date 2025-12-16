@@ -71,10 +71,10 @@ const PandC = () => (
                 {/* More Info Button */}
                 <div className="mt-8 flex justify-center">
                     <button
-                        onClick={() => window.open('https://www.ukpowernetworks.co.uk/', '_blank')}
+                        onClick={() => window.open('https://www.ukpowernetworks.co.uk/safety-equipment/advice/electricity-equipment-on-your-land', '_self')}
                         className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-600 to-red-600 text-white font-semibold rounded-xl hover:from-orange-700 hover:to-red-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                     >
-                        <Icon icon="lucide:external-link" className="text-xl" />
+                        <Icon icon="lucide:arrow-right" className="text-xl" />
                         More Information
                     </button>
                 </div>

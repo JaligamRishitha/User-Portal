@@ -13,6 +13,7 @@ import PandC from './pages/PandC';
 import MovingHouse from './pages/MovingHouse';
 import AdminHome from './pages/admin/AdminHome';
 import OCRScanner from './pages/admin/OCRScanner';
+import OCRUpload from './pages/admin/OCRUpload';
 import RequestConsole from './pages/admin/RequestConsole';
 import ReportsMap from './pages/admin/ReportsMap';
 
@@ -53,7 +54,7 @@ function AppContent() {
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout><ReportsMap /></AdminLayout>} />
-          <Route path="/admin/ocr" element={<AdminLayout><OCRScanner /></AdminLayout>} />
+          <Route path="/admin/ocr" element={<AdminLayout><OCRUpload /></AdminLayout>} />
           <Route path="/admin/console" element={<AdminLayout><RequestConsole /></AdminLayout>} />
         </Routes>
       </main>

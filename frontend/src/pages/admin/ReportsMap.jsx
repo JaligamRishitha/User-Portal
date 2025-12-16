@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
@@ -15,6 +15,78 @@ const ReportsMap = () => {
     const [showDocumentList, setShowDocumentList] = useState(false);
     const [locations, setLocations] = useState([]); // Multiple locations for remittance reports
     const [selectedLocation, setSelectedLocation] = useState(null);
+    const [viewMode, setViewMode] = useState('table'); // 'table' or 'map' for remittance reports
+
+    // Table filters for remittance reports
+    const [tableFilters, setTableFilters] = useState({
+        grantorNumber: '',
+        grantorName: '',
+        postcode: '',
+        fiscalYear: ''
+    });
+    const [filteredDocuments, setFilteredDocuments] = useState([]);
+
+    // Live search with debouncing - automatically search as user types
+    useEffect(() => {
+        // For remittance reports, search with 1+ characters (to support single digit grantor number search)
+        // For geographical reports, require 2+ characters
+        const minLength = reportType === 'remittance' ? 1 : 2;
+
+        if (searchQuery.trim().length >= minLength) {
+            const debounceTimer = setTimeout(() => {
+                performSearch();
+            }, 300); // Wait 300ms after user stops typing for faster response
+
+            return () => clearTimeout(debounceTimer);
+        } else if (searchQuery.trim().length === 0) {
+            // Clear results when search is empty
+            setDocuments([]);
+            setDocumentCount(0);
+            setHasSearched(false);
+            setLocations([]);
+            setFilteredDocuments([]);
+        }
+    }, [searchQuery, reportType]);
+
+    // Apply filters whenever documents or tableFilters change
+    useEffect(() => {
+        if (reportType === 'remittance' && viewMode === 'table') {
+            let filtered = [...documents];
+
+            // Filter by Grantor Number
+            if (tableFilters.grantorNumber.trim()) {
+                filtered = filtered.filter(doc =>
+                    doc.vendor_id?.toLowerCase().includes(tableFilters.grantorNumber.toLowerCase())
+                );
+            }
+
+            // Filter by Grantor Name
+            if (tableFilters.grantorName.trim()) {
+                filtered = filtered.filter(doc => {
+                    const name = doc.grantor_name || doc.full_name || '';
+                    return name.toLowerCase().includes(tableFilters.grantorName.toLowerCase());
+                });
+            }
+
+            // Filter by Postcode
+            if (tableFilters.postcode.trim()) {
+                filtered = filtered.filter(doc =>
+                    doc.postcode?.toLowerCase().includes(tableFilters.postcode.toLowerCase())
+                );
+            }
+
+            // Filter by Fiscal Year
+            if (tableFilters.fiscalYear.trim()) {
+                filtered = filtered.filter(doc =>
+                    doc.fiscal_year?.toString().includes(tableFilters.fiscalYear)
+                );
+            }
+
+            setFilteredDocuments(filtered);
+        } else {
+            setFilteredDocuments(documents);
+        }
+    }, [documents, tableFilters, reportType, viewMode]);
 
     const mapContainerStyle = {
         width: '100%',
@@ -29,17 +101,9 @@ const ReportsMap = () => {
         fullscreenControl: true,
     };
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        if (searchQuery.trim().length === 0) {
-            Swal.fire({
-                title: 'Input Required',
-                text: reportType === 'geographical' ? 'Please enter a postcode' : 'Please enter a fiscal year',
-                icon: 'warning',
-                confirmButtonColor: '#ea580c',
-            });
-            return;
-        }
+    const performSearch = async () => {
+        const minLength = reportType === 'remittance' ? 1 : 2;
+        if (searchQuery.trim().length < minLength) return;
 
         setLoading(true);
         setHasSearched(true);
@@ -47,12 +111,16 @@ const ReportsMap = () => {
         try {
             const endpoint = reportType === 'geographical'
                 ? `http://localhost:8000/api/admin/reports/geographical/${searchQuery}`
-                : `http://localhost:8000/api/admin/reports/remittance/${searchQuery}`;
+                : `http://localhost:8000/api/admin/reports/remittance/search/${searchQuery}`;
 
             const response = await fetch(endpoint);
             const data = await response.json();
 
             if (data.success) {
+                console.log('Received documents:', data.documents);
+                console.log('Document count:', data.count);
+                console.log('Current viewMode:', viewMode);
+                console.log('Report type:', reportType);
                 setDocuments(data.documents);
                 setDocumentCount(data.count);
                 if (reportType === 'geographical' && data.location) {
@@ -117,6 +185,7 @@ const ReportsMap = () => {
         setDocuments([]);
         setDocumentCount(0);
         setLocations([]); // Reset locations
+        setViewMode('table'); // Reset to table view for remittance
     };
 
     return (
@@ -125,7 +194,7 @@ const ReportsMap = () => {
             <div className="mb-6 flex flex-col items-center">
                 <div className="flex items-center gap-4 mb-4">
                     <h2 className={`text-2xl font-semibold transition-colors ${reportType === 'geographical' ? 'text-zinc-900' : 'text-zinc-400'}`}>
-                        Geographical Reports
+                        Map View
                     </h2>
 
                     {/* Toggle Switch */}
@@ -144,48 +213,74 @@ const ReportsMap = () => {
                     </h2>
                 </div>
 
-                {/* Dropdown Form */}
-                <form onSubmit={handleSearch} className="relative w-full max-w-lg group">
+                {/* Live Search Input */}
+                <div className="relative w-full max-w-lg group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                         <svg className="w-5 h-5 text-zinc-400 group-focus-within:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            {reportType === 'geographical' ? (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            ) : (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            )}
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </div>
-                    <select
-                        className="block w-full pl-11 pr-4 py-3 bg-white/80 backdrop-blur-sm border border-zinc-200 rounded-xl leading-5 text-zinc-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 sm:text-sm shadow-sm transition-all appearance-none cursor-pointer"
+                    <input
+                        type="text"
+                        className="block w-full pl-11 pr-12 py-3 bg-white/80 backdrop-blur-sm border border-zinc-200 rounded-xl leading-5 text-zinc-700 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 sm:text-sm shadow-sm transition-all"
+                        placeholder={reportType === 'geographical' ? 'Enter postcode (e.g., TN25 5HW)' : 'Search by year, grantor number, name, or postcode...'}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                    >
-                        <option value="">
-                            {reportType === 'geographical' ? 'Select Postcode' : 'Select Fiscal Year'}
-                        </option>
-                        {reportType === 'geographical' ? (
-                            <>
-                                <option value="TN255HW">TN25 5HW</option>
-                                <option value="RH158NB">RH15 8NB</option>
-                                <option value="TN126HT">TN12 6HT</option>
-                                <option value="CM33DQ">CM3 3DQ</option>
-                            </>
-                        ) : (
-                            <>
-                                <option value="2023">2023</option>
-                                <option value="2024">2024</option>
-                            </>
-                        )}
-                    </select>
-                    <button
-                        type="submit"
-                        disabled={loading || !searchQuery}
-                        className="absolute inset-y-1.5 right-1.5 px-4 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {loading ? 'Loading...' : 'Generate'}
-                    </button>
-                </form>
+                    />
+                    {loading && (
+                        <div className="absolute inset-y-0 right-3 flex items-center">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-600"></div>
+                        </div>
+                    )}
+                    {searchQuery && !loading && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute inset-y-0 right-3 flex items-center text-zinc-400 hover:text-zinc-600"
+                            title="Clear search"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* View Mode Toggle for Remittance Reports */}
+            {reportType === 'remittance' && searchQuery && documents.length > 0 && (
+                <div className="flex justify-end mb-4">
+                    <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1">
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'table'
+                                ? 'bg-orange-600 text-white'
+                                : 'text-zinc-600 hover:text-zinc-900'
+                                }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Table
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('map')}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'map'
+                                ? 'bg-orange-600 text-white'
+                                : 'text-zinc-600 hover:text-zinc-900'
+                                }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                </svg>
+                                Map
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Content */}
             {!hasSearched ? (
@@ -204,6 +299,136 @@ const ReportsMap = () => {
                             ? 'Enter a postcode to view network assets'
                             : 'Enter a fiscal year to view remittance reports'}
                     </p>
+                </div>
+            ) : reportType === 'remittance' && viewMode === 'table' && hasSearched && searchQuery ? (
+                /* Table View for Remittance Reports */
+                <div className="flex-1 overflow-hidden flex flex-col gap-4">
+                    {/* Filter Bar */}
+                    <div className="bg-white rounded-xl border border-zinc-200 p-4 shadow-sm">
+                        <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                            <h3 className="text-sm font-semibold text-zinc-900">Filter Results</h3>
+                            {(tableFilters.grantorNumber || tableFilters.grantorName || tableFilters.postcode || tableFilters.fiscalYear) && (
+                                <button
+                                    onClick={() => setTableFilters({ grantorNumber: '', grantorName: '', postcode: '', fiscalYear: '' })}
+                                    className="ml-auto text-xs text-orange-600 hover:text-orange-700 font-medium"
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Grantor Number..."
+                                    value={tableFilters.grantorNumber}
+                                    onChange={(e) => setTableFilters({ ...tableFilters, grantorNumber: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-200 focus:border-orange-300 outline-none"
+                                />
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Grantor Name..."
+                                    value={tableFilters.grantorName}
+                                    onChange={(e) => setTableFilters({ ...tableFilters, grantorName: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-200 focus:border-orange-300 outline-none"
+                                />
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Postcode..."
+                                    value={tableFilters.postcode}
+                                    onChange={(e) => setTableFilters({ ...tableFilters, postcode: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-200 focus:border-orange-300 outline-none"
+                                />
+                            </div>
+
+                        </div>
+                        <div className="mt-3 text-xs text-zinc-500">
+                            Showing {filteredDocuments.length} of {documents.length} results
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm flex-1">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="bg-zinc-50 border-b border-zinc-200">
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            Grantor Number
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            Grantor Name
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            First Name
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            Last Name
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            Fiscal Year
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            Postcode
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                                            Remittance Report
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200">
+                                    {filteredDocuments.length > 0 ? (
+                                        filteredDocuments.map((doc) => (
+                                            <tr key={doc.id} className="hover:bg-zinc-50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
+                                                    {doc.vendor_id || 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700">
+                                                    {doc.grantor_name || doc.full_name || 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700">
+                                                    {doc.first_name || 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700">
+                                                    {doc.last_name || 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700">
+                                                    {doc.fiscal_year}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700">
+                                                    {doc.postcode || '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <button
+                                                        onClick={() => window.open(`http://localhost:8000${doc.document_url}`, '_blank')}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-xs font-medium"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        View Document
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="7" className="px-6 py-12 text-center text-sm text-zinc-500">
+                                                No documents found for fiscal year {searchQuery}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <div className="flex-1 overflow-hidden" style={{ minHeight: '600px' }}>
@@ -241,20 +466,24 @@ const ReportsMap = () => {
                                                     <button
                                                         key={doc.id}
                                                         onClick={() => window.open(`http://localhost:8000${doc.document_url}`, '_blank')}
-                                                        className="w-full text-left p-3 hover:bg-orange-50 border-b border-zinc-100 last:border-b-0 transition-colors group"
+                                                        className="w-full text-left p-2.5 hover:bg-orange-50 border-b border-zinc-100 last:border-b-0 transition-colors group"
                                                     >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 group-hover:bg-red-600 group-hover:text-white transition-colors">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                </svg>
-                                                            </div>
+                                                        <div className="flex items-center gap-2">
                                                             <div className="flex-1 min-w-0">
-                                                                <h4 className="text-xs font-medium text-zinc-900 truncate group-hover:text-orange-600">{doc.document_name}</h4>
-                                                                <p className="text-[10px] text-zinc-500">{new Date(doc.created_at).toLocaleDateString()}</p>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <h4 className="text-xs font-semibold text-zinc-900 group-hover:text-orange-600">
+                                                                        {doc.full_name || 'Unknown'}
+                                                                    </h4>
+
+                                                                    {doc.vendor_id && (
+                                                                        <span className="text-[10px] text-zinc-400 font-normal">
+                                                                            ({doc.vendor_id})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                             <svg className="w-4 h-4 text-zinc-400 group-hover:text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                                             </svg>
                                                         </div>
                                                     </button>
@@ -321,16 +550,20 @@ const ReportsMap = () => {
                                                                         className="w-full text-left p-2.5 hover:bg-orange-50 border-b border-zinc-100 last:border-b-0 transition-all group"
                                                                     >
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                                </svg>
-                                                                            </div>
                                                                             <div className="flex-1 min-w-0">
-                                                                                <h4 className="text-xs font-medium text-zinc-900 truncate group-hover:text-orange-600">{doc.document_name}</h4>
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    <h4 className="text-xs font-semibold text-zinc-900 group-hover:text-orange-600">
+                                                                                        {doc.grantor_name || doc.full_name || 'Unknown'}
+                                                                                    </h4>
+                                                                                    {doc.vendor_id && (
+                                                                                        <span className="text-[10px] text-zinc-400 font-normal">
+                                                                                            ({doc.vendor_id})
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                             <svg className="w-4 h-4 text-zinc-400 group-hover:text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                                                             </svg>
                                                                         </div>
                                                                     </button>

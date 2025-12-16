@@ -61,11 +61,14 @@ const AdminLayout = ({ children }) => {
                                     Home
                                 </button>
                                 <button
-                                    onClick={() => window.open('http://149.102.158.71:2101/', '_blank')}
-                                    className="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 text-zinc-600 hover:bg-zinc-100"
+                                    onClick={() => navigate('/admin/ocr')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${location.pathname === '/admin/ocr'
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : 'text-zinc-600 hover:bg-zinc-100'
+                                        }`}
                                 >
                                     <MdDocumentScanner className="text-base" />
-                                    OCR
+                                    OCR Scanner
                                 </button>
                                 <button
                                     onClick={() => navigate('/admin/console')}

@@ -60,6 +60,28 @@ const BankDetails = () => {
     const submitUpdate = async (e) => {
         e.preventDefault();
 
+        // Validation: If Account Number is being edited, Account Holder Name is mandatory
+        if (selectedFields.includes("Account Number") && !formData.accountHolder.trim()) {
+            Swal.fire({
+                title: 'Validation Error',
+                text: 'Account Holder Name is required when updating Account Number',
+                icon: 'error',
+                confirmButtonColor: '#ea580c',
+            });
+            return;
+        }
+
+        // Validation: If Payment Method is BACS, Email is mandatory
+        if (formData.paymentMethod === 'BACS' && !formData.email.trim()) {
+            Swal.fire({
+                title: 'Validation Error',
+                text: 'Email is required when Payment Method is BACS',
+                icon: 'error',
+                confirmButtonColor: '#ea580c',
+            });
+            return;
+        }
+
         const result = await Swal.fire({
             title: 'Are you sure?',
             text: "Do you want to proceed with the update?",
@@ -229,8 +251,8 @@ const BankDetails = () => {
                                         type="text"
                                         placeholder="00-00-00"
                                         className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none font-mono ${selectedFields.includes("Sort Code")
-                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
-                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                            : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
                                             }`}
                                         value={formData.sortCode}
                                         onChange={(e) => selectedFields.includes("Sort Code") && setFormData({ ...formData, sortCode: e.target.value })}
@@ -242,18 +264,18 @@ const BankDetails = () => {
                                 <div>
                                     <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
                                         Account Number
-                                        {selectedFields.includes("Account Number") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                        {(selectedFields.includes("Account Number") || selectedFields.includes("Sort Code")) && <span className="text-xs text-orange-600">(Editable)</span>}
                                     </label>
                                     <input
                                         type="text"
                                         placeholder="00000000"
-                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none font-mono ${selectedFields.includes("Account Number")
-                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
-                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none font-mono ${(selectedFields.includes("Account Number") || selectedFields.includes("Sort Code"))
+                                            ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                            : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
                                             }`}
                                         value={formData.accountNumber}
-                                        onChange={(e) => selectedFields.includes("Account Number") && setFormData({ ...formData, accountNumber: e.target.value })}
-                                        readOnly={!selectedFields.includes("Account Number")}
+                                        onChange={(e) => (selectedFields.includes("Account Number") || selectedFields.includes("Sort Code")) && setFormData({ ...formData, accountNumber: e.target.value })}
+                                        readOnly={!(selectedFields.includes("Account Number") || selectedFields.includes("Sort Code"))}
                                     />
                                 </div>
 
@@ -261,17 +283,17 @@ const BankDetails = () => {
                                 <div>
                                     <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
                                         Account Holder Name
-                                        {selectedFields.includes("Account Holder Name") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                        {(selectedFields.includes("Account Holder Name") || selectedFields.includes("Sort Code") || selectedFields.includes("Account Number")) && <span className="text-xs text-orange-600">(Editable)</span>}
                                     </label>
                                     <input
                                         type="text"
-                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Account Holder Name")
-                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
-                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                        className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${(selectedFields.includes("Account Holder Name") || selectedFields.includes("Sort Code") || selectedFields.includes("Account Number"))
+                                            ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                            : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
                                             }`}
                                         value={formData.accountHolder}
-                                        onChange={(e) => selectedFields.includes("Account Holder Name") && setFormData({ ...formData, accountHolder: e.target.value })}
-                                        readOnly={!selectedFields.includes("Account Holder Name")}
+                                        onChange={(e) => (selectedFields.includes("Account Holder Name") || selectedFields.includes("Sort Code") || selectedFields.includes("Account Number")) && setFormData({ ...formData, accountHolder: e.target.value })}
+                                        readOnly={!(selectedFields.includes("Account Holder Name") || selectedFields.includes("Sort Code") || selectedFields.includes("Account Number"))}
                                     />
                                 </div>
 
@@ -284,8 +306,8 @@ const BankDetails = () => {
                                     <input
                                         type="tel"
                                         className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Mobile Number")
-                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
-                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                            : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
                                             }`}
                                         value={formData.mobile}
                                         onChange={(e) => selectedFields.includes("Mobile Number") && setFormData({ ...formData, mobile: e.target.value })}
@@ -298,12 +320,13 @@ const BankDetails = () => {
                                     <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
                                         Email
                                         {selectedFields.includes("Email") && <span className="text-xs text-orange-600">(Editable)</span>}
+                                        {formData.paymentMethod === 'BACS' && <span className="text-xs text-red-600">*Required for BACS</span>}
                                     </label>
                                     <input
                                         type="email"
                                         className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Email")
-                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
-                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                            : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
                                             }`}
                                         value={formData.email}
                                         onChange={(e) => selectedFields.includes("Email") && setFormData({ ...formData, email: e.target.value })}
@@ -319,14 +342,15 @@ const BankDetails = () => {
                                     </label>
                                     <select
                                         className={`mt-1 w-full px-4 py-2 border rounded-lg outline-none ${selectedFields.includes("Payment Method")
-                                                ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
-                                                : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
+                                            ? 'bg-orange-50 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                                            : 'bg-zinc-100 border-zinc-200 cursor-not-allowed'
                                             }`}
                                         value={formData.paymentMethod}
                                         onChange={(e) => selectedFields.includes("Payment Method") && setFormData({ ...formData, paymentMethod: e.target.value })}
                                         disabled={!selectedFields.includes("Payment Method")}
                                     >
                                         <option>BACS</option>
+                                        <option>Faster Payments</option>
                                         <option>Cheque</option>
                                     </select>
                                 </div>

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { MdHome, MdPerson, MdAccountBalance, MdHistory, MdCalendarToday, MdBolt, MdLocalShipping, MdMenu, MdClose } from 'react-icons/md';
+import { MdHome, MdPerson, MdAccountBalance, MdHistory, MdCalendarToday, MdBolt, MdLocalShipping, MdMenu, MdClose, MdDarkMode, MdLightMode } from 'react-icons/md';
 import NavItem from './NavItem';
 import ukpnLogo from '../assets/images/ukpn-logo.png';
 
 const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userName, setUserName] = useState('');
+    const [darkMode, setDarkMode] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -15,7 +16,26 @@ const Header = () => {
         // Get user first name from localStorage
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         setUserName(user.firstName || user.email || '');
+
+        // Get dark mode preference from localStorage
+        const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+        setDarkMode(savedDarkMode);
+        if (savedDarkMode) {
+            document.documentElement.classList.add('dark');
+        }
     }, []);
+
+    const toggleDarkMode = () => {
+        const newDarkMode = !darkMode;
+        setDarkMode(newDarkMode);
+        localStorage.setItem('darkMode', newDarkMode.toString());
+
+        if (newDarkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    };
 
     const menuItems = [
         { id: '/', label: 'Home', icon: MdHome },
@@ -87,6 +107,19 @@ const Header = () => {
                     {/* Right Actions - Right aligned with minimal margin */}
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="hidden sm:flex items-center gap-3">
+                            {/* Dark Mode Toggle - Temporarily Hidden */}
+                            {/* <button
+                                onClick={toggleDarkMode}
+                                className="p-2 rounded-lg hover:bg-orange-50 transition-colors group"
+                                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                            >
+                                {darkMode ? (
+                                    <MdLightMode className="text-xl text-yellow-500 group-hover:text-yellow-600 transition-colors" />
+                                ) : (
+                                    <MdDarkMode className="text-xl text-zinc-600 group-hover:text-orange-600 transition-colors" />
+                                )}
+                            </button> */}
+
                             <button
                                 onClick={() => handleNavigate('/profile')}
                                 className="flex items-center gap-2 px-3 py-2 group"

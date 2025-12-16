@@ -117,7 +117,7 @@ const Profile = () => {
                                 <p className="text-xs text-zinc-500 mb-1.5">{userData.email}</p>
                                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold border border-orange-200">
                                     <Icon icon="lucide:shield-check" className="text-xs" />
-                                    Grantor ID: {userData.grantorNumber}
+                                    Grantor Number: {userData.grantorNumber}
                                 </div>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
