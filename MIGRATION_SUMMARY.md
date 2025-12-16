@@ -1,234 +1,204 @@
-# Migration Summary - Vendor ID Foreign Keys
+# Database Migration Setup - Summary
 
-## ✅ Completed Tasks
+## What Was Created
 
-### 1. Database Tables Created
-Both tables now include `vendor_id` as a foreign key:
+### 1. Alembic Configuration
+- **Location**: `backend/alembic/`
+- **Config File**: `backend/alembic.ini`
+- **Environment**: `backend/alembic/env.py` (configured to use your models and database settings)
 
-#### remittance_reports
-```sql
-CREATE TABLE remittance_reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fiscal_year INTEGER NOT NULL,
-    document_name VARCHAR(255),
-    document_url VARCHAR(500),
-    document_type VARCHAR(50),
-    upload_date DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    postcode VARCHAR(20),
-    vendor_id VARCHAR(50),  -- FOREIGN KEY
-    FOREIGN KEY (vendor_id) REFERENCES user_details(vendor_id)
-);
+### 2. Migration Files
+
+#### Initial Schema Migration
+- **File**: `backend/alembic/versions/95b6c1509bb5_initial_migration_with_all_tables.py`
+- **Purpose**: Creates all database tables
+- **Tables Created**:
+  - vendors
+  - user_details
+  - bank_details
+  - payment_history
+  - payment_schedule_headers
+  - payment_schedule_items
+  - remittance_documents
+  - wayleave_agreements (with company_with column)
+
+#### Seed Data Migration
+- **File**: `backend/alembic/versions/seed_initial_data.py`
+- **Purpose**: Inserts initial test/development data
+- **Data Included**:
+  - 2 sample vendors (5000000015, 5000000061)
+  - 2 user detail records
+  - 2 bank detail records
+
+### 3. Helper Scripts
+
+#### Data Export Script
+- **File**: `backend/export_database_data.py`
+- **Purpose**: Exports current database data to SQL INSERT statements
+- **Output**: `backend/database_data_export.sql`
+
+#### Seed Data Generator
+- **File**: `backend/create_seed_data_migration.py`
+- **Purpose**: Creates the seed data migration file
+
+#### Migration Scripts
+- **File**: `backend/add_company_with_column.py`
+- **Purpose**: Adds company_with column to wayleave_agreements table
+
+### 4. Deployment Scripts
+
+#### Linux/Mac
+- **File**: `deploy_migrations.sh`
+- **Usage**: `./deploy_migrations.sh`
+
+#### Windows
+- **File**: `deploy_migrations.bat`
+- **Usage**: `deploy_migrations.bat`
+
+#### Docker
+- **File**: `run_migration_docker.bat`
+- **Usage**: Runs migrations in Docker container
+
+### 5. Documentation
+
+- **ALEMBIC_MIGRATION_GUIDE.md**: Complete guide for using Alembic
+- **DEPLOYMENT_GUIDE.md**: Full server deployment instructions
+- **MIGRATION_SUMMARY.md**: This file
+
+## Quick Start
+
+### For Development (Docker)
+
+```bash
+# Apply all migrations
+docker exec -it ukpn-backend alembic upgrade head
+
+# Check status
+docker exec -it ukpn-backend alembic current
 ```
 
-#### geographical_documents
-```sql
-CREATE TABLE geographical_documents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    postcode VARCHAR(20) NOT NULL,
-    document_name VARCHAR(255),
-    document_url VARCHAR(500),
-    document_type VARCHAR(50),
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    vendor_id VARCHAR(50),  -- FOREIGN KEY
-    FOREIGN KEY (vendor_id) REFERENCES user_details(vendor_id)
-);
+### For Production Server
+
+```bash
+# Navigate to backend directory
+cd User-Portal/backend
+
+# Apply all migrations
+alembic upgrade head
+
+# Verify
+alembic current
 ```
 
-### 2. Backend Updates
+## What Happens When You Run Migrations
 
-#### Remittance Reports Query (backend/routers/reports.py)
-**Before:**
-```sql
-LEFT JOIN user_details ud ON rr.postcode = ud.postcode
+1. **First Migration** (95b6c1509bb5):
+   - Creates all database tables
+   - Sets up foreign key relationships
+   - Adds indexes for performance
+   - Configures column types and constraints
+
+2. **Seed Data Migration** (seed_initial_data):
+   - Inserts 2 sample vendors
+   - Adds corresponding user details
+   - Adds bank account information
+   - Ready for testing immediately
+
+## Benefits
+
+✅ **Version Control**: All database changes are tracked in git
+✅ **Reproducible**: Same database structure on all environments
+✅ **Rollback**: Can undo migrations if needed
+✅ **Team Collaboration**: Everyone uses the same schema
+✅ **Deployment**: Simple one-command deployment
+✅ **Seed Data**: Automatic test data insertion
+
+## Migration Workflow
+
+### Creating New Migrations
+
+```bash
+# Auto-generate from model changes
+docker exec -it ukpn-backend alembic revision --autogenerate -m "Add new column"
+
+# Create manual migration
+docker exec -it ukpn-backend alembic revision -m "Add seed data"
 ```
 
-**After:**
-```sql
-LEFT JOIN user_details ud ON rr.vendor_id = ud.vendor_id
+### Applying Migrations
+
+```bash
+# Apply all pending migrations
+alembic upgrade head
+
+# Apply one migration
+alembic upgrade +1
+
+# Rollback one migration
+alembic downgrade -1
+
+# Rollback to specific version
+alembic downgrade <revision_id>
 ```
 
-#### Geographical Documents Query (backend/routers/reports.py)
-**Before:**
-```sql
-SELECT id, postcode, document_name, document_url, ...
-FROM geographical_documents
+### Checking Status
+
+```bash
+# Current version
+alembic current
+
+# Migration history
+alembic history
+
+# Show pending migrations
+alembic history --verbose
 ```
 
-**After:**
-```sql
-SELECT gd.*, ud.vendor_name, ud.first_name, ud.last_name
-FROM geographical_documents gd
-LEFT JOIN user_details ud ON gd.vendor_id = ud.vendor_id
-```
+## Files Updated
 
-### 3. Frontend Updates
+### Backend
+- ✅ `requirements.txt` - Added alembic==1.17.2
+- ✅ `alembic.ini` - Alembic configuration
+- ✅ `alembic/env.py` - Environment setup with models
+- ✅ `alembic/versions/` - Migration files
 
-#### Remittance Reports Map View (ReportsMap.jsx)
-**Display Format:**
-```
-5000000015 • ABC Company Ltd 🔗
-```
-- Shows Grantor Number (vendor_id)
-- Shows Grantor Name (vendor_name)
-- Link icon for document
-
-#### Geographical Reports Map View (ReportsMap.jsx)
-**Display Format:**
-```
-John Doe 🔗
-```
-- Shows First Name + Last Name
-- Falls back to vendor_name if names not available
-- Link icon for document
-
-### 4. Files Created
-
-1. **add_vendor_id_to_remittance.sql** - Original migration script
-2. **rollback_vendor_id_from_remittance.sql** - Rollback script
-3. **backend/create_reports_tables.py** - Table creation script (✓ Executed)
-4. **backend/add_vendor_id_columns.py** - Column addition script
-5. **VENDOR_ID_MIGRATION_GUIDE.md** - Comprehensive guide
-6. **MIGRATION_SUMMARY.md** - This file
-
-### 5. Files Modified
-
-1. **backend/routers/reports.py**
-   - Updated `get_remittance_documents()` to join via vendor_id
-   - Updated `get_geographical_documents()` to join via vendor_id and return user details
-
-2. **frontend/src/pages/admin/ReportsMap.jsx**
-   - Updated remittance map popup to show vendor_id + vendor_name
-   - Updated geographical map popup to show first_name + last_name
-
-## Benefits Achieved
-
-### Performance
-- ✅ Direct foreign key joins (faster than postcode matching)
-- ✅ Indexed vendor_id columns for quick lookups
-- ✅ Reduced query complexity
-
-### Data Integrity
-- ✅ Foreign key constraints prevent invalid references
-- ✅ Cascade updates maintain consistency
-- ✅ SET NULL on delete prevents orphaned records
-
-### User Experience
-- ✅ Map popups show meaningful vendor information
-- ✅ Grantor numbers and names clearly displayed
-- ✅ Simple link icons for document access
-- ✅ Consistent display across both report types
-
-## Testing Checklist
-
-- [x] Database tables created successfully
-- [x] vendor_id columns added to both tables
-- [x] Indexes created for performance
-- [x] Backend queries updated
-- [x] Frontend map views updated
-- [ ] Test with actual data
-- [ ] Verify remittance reports table view
-- [ ] Verify remittance reports map view
-- [ ] Verify geographical reports map view
-- [ ] Check document links work correctly
+### Root Directory
+- ✅ `deploy_migrations.sh` - Linux deployment script
+- ✅ `deploy_migrations.bat` - Windows deployment script
+- ✅ `DEPLOYMENT_GUIDE.md` - Full deployment guide
+- ✅ `MIGRATION_SUMMARY.md` - This summary
 
 ## Next Steps
 
-### To Populate Data:
-1. Add vendor_id when uploading new documents
-2. Run migration script to link existing documents:
+1. **Test Migrations Locally**:
    ```bash
-   cd backend
-   python add_vendor_id_columns.py
+   docker exec -it ukpn-backend alembic upgrade head
    ```
 
-### To Test:
-1. Start backend server
-2. Navigate to Admin Portal → Home
-3. Test Remittance Reports:
-   - Switch to "Remittance Reports"
-   - Enter fiscal year (2023 or 2024)
-   - Check table view shows vendor info
-   - Switch to map view
-   - Verify popups show "Vendor# • Name"
-4. Test Geographical Reports:
-   - Switch to "Map View"
-   - Enter postcode
-   - Verify popups show "First Last"
+2. **Verify Database**:
+   ```bash
+   docker exec -it ukpn-postgres psql -U ukpn_user -d ukpn_portal -c "\dt"
+   ```
 
-## Database Schema Diagram
+3. **Check Data**:
+   ```bash
+   docker exec -it ukpn-postgres psql -U ukpn_user -d ukpn_portal -c "SELECT * FROM vendors;"
+   ```
 
-```
-user_details
-├── vendor_id (PK)
-├── vendor_name
-├── first_name
-├── last_name
-└── postcode
+4. **Deploy to Server**:
+   - Follow `DEPLOYMENT_GUIDE.md`
+   - Run `deploy_migrations.sh` or `deploy_migrations.bat`
 
-remittance_reports
-├── id (PK)
-├── fiscal_year
-├── document_name
-├── document_url
-├── postcode
-└── vendor_id (FK) ──→ user_details.vendor_id
+## Important Notes
 
-geographical_documents
-├── id (PK)
-├── postcode
-├── document_name
-├── document_url
-├── latitude
-├── longitude
-└── vendor_id (FK) ──→ user_details.vendor_id
-```
-
-## API Response Examples
-
-### Remittance Reports
-```json
-{
-  "success": true,
-  "fiscal_year": 2024,
-  "documents": [
-    {
-      "id": 1,
-      "fiscal_year": 2024,
-      "vendor_id": "5000000015",
-      "vendor_name": "ABC Company Ltd",
-      "first_name": "John",
-      "last_name": "Doe",
-      "document_url": "/documents/remittance/2024/report.pdf"
-    }
-  ]
-}
-```
-
-### Geographical Documents
-```json
-{
-  "success": true,
-  "postcode": "TN255HW",
-  "documents": [
-    {
-      "id": 1,
-      "postcode": "TN255HW",
-      "vendor_id": "5000000015",
-      "vendor_name": "ABC Company Ltd",
-      "first_name": "John",
-      "last_name": "Doe",
-      "document_url": "/documents/geographical/TN255HW_doc.pdf"
-    }
-  ]
-}
-```
+⚠️ **Never edit applied migrations** - Create new ones instead
+⚠️ **Always backup production database** before running migrations
+⚠️ **Test migrations in development** before production deployment
+⚠️ **Commit migration files to git** for team collaboration
 
 ## Support
 
-For issues or questions:
-- Check backend logs
-- Verify database schema: `python backend/check_tables.py`
-- Review migration guide: `VENDOR_ID_MIGRATION_GUIDE.md`
+For detailed information, see:
+- `backend/ALEMBIC_MIGRATION_GUIDE.md` - Alembic usage
+- `DEPLOYMENT_GUIDE.md` - Server deployment
+- Alembic Documentation: https://alembic.sqlalchemy.org/

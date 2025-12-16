@@ -15,6 +15,7 @@ const OCRUpload = () => {
         grantorEmail: '',
         agreementDate: '',
         agreementRef: '',
+        companyWith: '',
         tqNumber: '',
         payment: '',
         duration: '',
@@ -223,6 +224,7 @@ const OCRUpload = () => {
             // Agreement Details
             agreementDate: '',
             agreementRef: '',
+            companyWith: '',
             tqNumber: '',
             payment: '',
             duration: '',
@@ -261,6 +263,7 @@ const OCRUpload = () => {
                 const addressLines = addressSection
                     .split('\n')
                     .map(line => line.trim())
+                    .map(line => line.replace(/^of\s+/i, '')) // Remove "of" prefix from each line
                     .filter(line =>
                         line &&
                         !line.toLowerCase().includes('grantor') &&
@@ -268,7 +271,13 @@ const OCRUpload = () => {
                         !line.match(/^\(.*\)$/) // Remove lines that are just parentheses
                     );
 
-                data.grantorAddress = addressLines.join(', ').replace(/^[,\s]+|[,\s]+$/g, '');
+                // Join address lines and remove "(the Grantee)" or similar text
+                data.grantorAddress = addressLines
+                    .join(', ')
+                    .replace(/\s*\([^)]*the\s+Grantee[^)]*\)/gi, '') // Remove "(the Grantee)" and variations
+                    .replace(/^of\s+/i, '') // Remove "of" prefix from final address
+                    .replace(/,\s*of\s+/gi, ', ') // Remove "of" after commas
+                    .replace(/^[,\s]+|[,\s]+$/g, '');
             }
         }
 
@@ -293,6 +302,19 @@ const OCRUpload = () => {
             }
         }
 
+        // Extract Company Information (the "with" party)
+        // Look for text between "and" and "the Company" or "the other part"
+        const companyMatch = text.match(/\bAND\s+(.*?)\s*\(.*?(?:the Company|the Grantee).*?\)\s*of\s+the\s+other\s+part/is);
+        if (companyMatch) {
+            // Clean up the company info - remove extra whitespace and newlines
+            data.companyWith = companyMatch[1]
+                .replace(/\n/g, ' ')
+                .replace(/\s+/g, ' ')
+                .replace(/["()]/g, '')
+                .replace(/\bpie\b/gi, 'plc') // Fix common OCR error: "pie" -> "plc"
+                .trim();
+        }
+
         // Extract Agreement Date - look for "made the" or "dated"
         const dateMatch = text.match(/made\s+the\s+(\d{1,2}(?:st|nd|rd|th)?\s+day\s+of\s+\w+\s+\d{4})/i) ||
             text.match(/dated\s+(?:the\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+\w+\s+\d{4})/i) ||
@@ -307,11 +329,12 @@ const OCRUpload = () => {
             data.agreementRef = refMatch[1];
         }
 
-        // Extract TQ Number - look for TQ followed by alphanumeric
-        const tqMatch = text.match(/\bTQ[:\s#-]*([A-Z0-9\-\/]+)/i) ||
-            text.match(/\bT\.Q[:\s#-]*([A-Z0-9\-\/]+)/i);
+        // Extract TQ Number - look for TQ followed by numbers (include TQ prefix with space)
+        const tqMatch = text.match(/\bTQ\s*[:\s#-]*\s*(\d+)/i) ||
+            text.match(/\bT\.Q\s*[:\s#-]*\s*(\d+)/i);
         if (tqMatch) {
-            data.tqNumber = tqMatch[1];
+            // Keep TQ prefix with the number
+            data.tqNumber = 'TQ' + tqMatch[1];
         }
 
         // Extract Payment amount
@@ -561,6 +584,7 @@ const OCRUpload = () => {
                 grantor_email: metadata.grantorEmail,
                 agreement_date: metadata.agreementDate,
                 agreement_ref: metadata.agreementRef,
+                company_with: metadata.companyWith,
                 tq_number: metadata.tqNumber,
                 payment: metadata.payment,
                 duration: metadata.duration,
@@ -827,13 +851,12 @@ const OCRUpload = () => {
                                 )}
 
                                 {/* Agreement Details */}
-                                {(metadata.agreementDate || metadata.agreementRef || metadata.tqNumber || metadata.payment || metadata.duration) && (
+                                {(metadata.agreementDate || metadata.companyWith || metadata.payment || metadata.duration) && (
                                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                         <h4 className="text-sm font-semibold text-orange-900 mb-3">Agreement Details</h4>
                                         <div className="space-y-2 text-sm">
                                             {metadata.agreementDate && <div><span className="font-medium text-orange-700">Date:</span> <span className="text-orange-900">{metadata.agreementDate}</span></div>}
-                                            {metadata.agreementRef && <div><span className="font-medium text-orange-700">Reference:</span> <span className="text-orange-900">{metadata.agreementRef}</span></div>}
-                                            {metadata.tqNumber && <div><span className="font-medium text-orange-700">TQ Number:</span> <span className="text-orange-900">{metadata.tqNumber}</span></div>}
+                                            {metadata.companyWith && <div><span className="font-medium text-orange-700">With:</span> <span className="text-orange-900">{metadata.companyWith}</span></div>}
                                             {metadata.payment && <div><span className="font-medium text-orange-700">Payment:</span> <span className="text-orange-900">{metadata.payment}</span></div>}
                                             {metadata.duration && <div><span className="font-medium text-orange-700">Duration:</span> <span className="text-orange-900">{metadata.duration}</span></div>}
                                         </div>
@@ -841,10 +864,11 @@ const OCRUpload = () => {
                                 )}
 
                                 {/* Wayleave Information */}
-                                {(metadata.propertyLocation || metadata.worksDescription || metadata.drawingNumber) && (
+                                {(metadata.tqNumber || metadata.propertyLocation || metadata.worksDescription || metadata.drawingNumber) && (
                                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                         <h4 className="text-sm font-semibold text-green-900 mb-3">Wayleave Information</h4>
                                         <div className="space-y-2 text-sm">
+                                            {metadata.tqNumber && <div><span className="font-medium text-green-700">TQ Number:</span> <span className="text-green-900">{metadata.tqNumber}</span></div>}
                                             {metadata.propertyLocation && <div><span className="font-medium text-green-700">Property:</span> <span className="text-green-900">{metadata.propertyLocation}</span></div>}
                                             {metadata.worksDescription && <div><span className="font-medium text-green-700">Works:</span> <span className="text-green-900">{metadata.worksDescription}</span></div>}
                                             {metadata.drawingNumber && <div><span className="font-medium text-green-700">Drawing No:</span> <span className="text-green-900">{metadata.drawingNumber}</span></div>}
@@ -913,13 +937,12 @@ const OCRUpload = () => {
                             )}
 
                             {/* Agreement Details */}
-                            {(viewingDocument.agreement_date || viewingDocument.agreement_ref || viewingDocument.tq_number || viewingDocument.payment || viewingDocument.duration) && (
+                            {(viewingDocument.agreement_date || viewingDocument.company_with || viewingDocument.payment || viewingDocument.duration) && (
                                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                     <h4 className="text-sm font-semibold text-orange-900 mb-3">Agreement Details</h4>
                                     <div className="space-y-2 text-sm">
                                         {viewingDocument.agreement_date && <div><span className="font-medium text-orange-700">Date:</span> <span className="text-orange-900">{viewingDocument.agreement_date}</span></div>}
-                                        {viewingDocument.agreement_ref && <div><span className="font-medium text-orange-700">Reference:</span> <span className="text-orange-900">{viewingDocument.agreement_ref}</span></div>}
-                                        {viewingDocument.tq_number && <div><span className="font-medium text-orange-700">TQ Number:</span> <span className="text-orange-900">{viewingDocument.tq_number}</span></div>}
+                                        {viewingDocument.company_with && <div><span className="font-medium text-orange-700">With:</span> <span className="text-orange-900">{viewingDocument.company_with}</span></div>}
                                         {viewingDocument.payment && <div><span className="font-medium text-orange-700">Payment:</span> <span className="text-orange-900">{viewingDocument.payment}</span></div>}
                                         {viewingDocument.duration && <div><span className="font-medium text-orange-700">Duration:</span> <span className="text-orange-900">{viewingDocument.duration}</span></div>}
                                     </div>
@@ -927,10 +950,11 @@ const OCRUpload = () => {
                             )}
 
                             {/* Wayleave Information */}
-                            {(viewingDocument.property_location || viewingDocument.works_description || viewingDocument.drawing_number) && (
+                            {(viewingDocument.tq_number || viewingDocument.property_location || viewingDocument.works_description || viewingDocument.drawing_number) && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                     <h4 className="text-sm font-semibold text-green-900 mb-3">Wayleave Information</h4>
                                     <div className="space-y-2 text-sm">
+                                        {viewingDocument.tq_number && <div><span className="font-medium text-green-700">TQ Number:</span> <span className="text-green-900">{viewingDocument.tq_number}</span></div>}
                                         {viewingDocument.property_location && <div><span className="font-medium text-green-700">Property:</span> <span className="text-green-900">{viewingDocument.property_location}</span></div>}
                                         {viewingDocument.works_description && <div><span className="font-medium text-green-700">Works:</span> <span className="text-green-900">{viewingDocument.works_description}</span></div>}
                                         {viewingDocument.drawing_number && <div><span className="font-medium text-green-700">Drawing No:</span> <span className="text-green-900">{viewingDocument.drawing_number}</span></div>}

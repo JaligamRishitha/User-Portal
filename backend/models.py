@@ -174,6 +174,7 @@ class WayleaveAgreement(Base):
     # Agreement Details
     agreement_date = Column(String(100))
     agreement_ref = Column(String(100))
+    company_with = Column(Text)
     tq_number = Column(String(100))
     payment = Column(String(50))
     duration = Column(String(50))

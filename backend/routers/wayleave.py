@@ -20,6 +20,7 @@ class WayleaveAgreementCreate(BaseModel):
     grantor_email: Optional[str] = None
     agreement_date: Optional[str] = None
     agreement_ref: Optional[str] = None
+    company_with: Optional[str] = None
     tq_number: Optional[str] = None
     payment: Optional[str] = None
     duration: Optional[str] = None
@@ -49,6 +50,7 @@ async def create_wayleave_agreement(
             grantor_email=agreement.grantor_email,
             agreement_date=agreement.agreement_date,
             agreement_ref=agreement.agreement_ref,
+            company_with=agreement.company_with,
             tq_number=agreement.tq_number,
             payment=agreement.payment,
             duration=agreement.duration,
@@ -74,6 +76,7 @@ async def create_wayleave_agreement(
             "grantor_email": new_agreement.grantor_email,
             "agreement_date": new_agreement.agreement_date,
             "agreement_ref": new_agreement.agreement_ref,
+            "company_with": new_agreement.company_with,
             "tq_number": new_agreement.tq_number,
             "payment": new_agreement.payment,
             "duration": new_agreement.duration,
@@ -107,6 +110,7 @@ async def get_wayleave_agreements(db: Session = Depends(get_db)):
             "grantor_email": agreement.grantor_email,
             "agreement_date": agreement.agreement_date,
             "agreement_ref": agreement.agreement_ref,
+            "company_with": agreement.company_with,
             "tq_number": agreement.tq_number,
             "payment": agreement.payment,
             "duration": agreement.duration,
@@ -142,6 +146,7 @@ async def get_wayleave_agreement(agreement_id: int, db: Session = Depends(get_db
             "grantor_email": agreement.grantor_email,
             "agreement_date": agreement.agreement_date,
             "agreement_ref": agreement.agreement_ref,
+            "company_with": agreement.company_with,
             "tq_number": agreement.tq_number,
             "payment": agreement.payment,
             "duration": agreement.duration,

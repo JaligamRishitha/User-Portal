@@ -6,7 +6,7 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const ReportsMap = () => {
     const [reportType, setReportType] = useState('geographical');
     const [searchQuery, setSearchQuery] = useState("");
-    const [hasSearched, setHasSearched] = useState(true);
+    const [hasSearched, setHasSearched] = useState(false);
     const [loading, setLoading] = useState(false);
     const [documents, setDocuments] = useState([]);
     const [documentCount, setDocumentCount] = useState(0);
@@ -181,7 +181,7 @@ const ReportsMap = () => {
         const newType = reportType === 'geographical' ? 'remittance' : 'geographical';
         setReportType(newType);
         setSearchQuery("");
-        setHasSearched(true); // Always show map for both types
+        setHasSearched(false); // Reset to show empty map
         setDocuments([]);
         setDocumentCount(0);
         setLocations([]); // Reset locations
@@ -283,24 +283,7 @@ const ReportsMap = () => {
             )}
 
             {/* Content */}
-            {!hasSearched ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-200 rounded-2xl bg-zinc-50/30">
-                    <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mb-4 text-zinc-300">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            {reportType === 'geographical' ? (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            ) : (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            )}
-                        </svg>
-                    </div>
-                    <p className="text-sm font-medium">
-                        {reportType === 'geographical'
-                            ? 'Enter a postcode to view network assets'
-                            : 'Enter a fiscal year to view remittance reports'}
-                    </p>
-                </div>
-            ) : reportType === 'remittance' && viewMode === 'table' && hasSearched && searchQuery ? (
+            {reportType === 'remittance' && viewMode === 'table' && hasSearched && searchQuery ? (
                 /* Table View for Remittance Reports */
                 <div className="flex-1 overflow-hidden flex flex-col gap-4">
                     {/* Filter Bar */}
@@ -443,12 +426,9 @@ const ReportsMap = () => {
                                     loading="lazy"
                                     allowFullScreen
                                     referrerPolicy="no-referrer-when-downgrade"
-                                    src={searchQuery
-                                        ? `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${location.latitude},${location.longitude}&zoom=15&maptype=roadmap`
-                                        : `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`
-                                    }
+                                    src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`}
                                 />
-                                {searchQuery && documents.length > 0 && (
+                                {hasSearched && searchQuery && documents.length > 0 && (
                                     <>
                                         {/* Document List Popup - Near Marker (Always Visible) */}
                                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full mb-16 bg-white/95 backdrop-blur rounded-xl shadow-xl border border-zinc-200 z-10 max-w-xs animate-fade-in">
@@ -505,12 +485,9 @@ const ReportsMap = () => {
                                     loading="lazy"
                                     allowFullScreen
                                     referrerPolicy="no-referrer-when-downgrade"
-                                    src={searchQuery
-                                        ? `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=12&maptype=roadmap`
-                                        : `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`
-                                    }
+                                    src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`}
                                 />
-                                {searchQuery && locations.length > 0 && (
+                                {hasSearched && searchQuery && locations.length > 0 && (
                                     <>
                                         {/* Multiple Location Markers with Popup Boxes */}
                                         {locations.map((loc, index) => {
@@ -579,7 +556,7 @@ const ReportsMap = () => {
                                         </div>
                                     </>
                                 )}
-                                {searchQuery && documents.length > 0 && locations.length === 0 && (
+                                {hasSearched && searchQuery && documents.length > 0 && locations.length === 0 && (
                                     <div className="absolute top-4 left-4 bg-red-100 border border-red-300 px-3 py-2 rounded-lg text-xs text-red-700">
                                         No postcodes found for documents
                                     </div>
