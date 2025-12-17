@@ -416,7 +416,7 @@ const ReportsMap = () => {
             ) : (
                 <div className="flex-1 overflow-hidden" style={{ minHeight: '600px' }}>
                     {/* Map View / Year Info - Full Width */}
-                    <div className="bg-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden relative shadow-inner group w-full h-full" style={{ minHeight: '600px' }}>
+                    <div className={`rounded-2xl overflow-hidden relative group w-full h-full ${(reportType === 'remittance' && (!hasSearched || !searchQuery)) ? '' : 'bg-zinc-100 border border-zinc-200 shadow-inner'}`} style={{ minHeight: '600px' }}>
                         {reportType === 'geographical' ? (
                             <>
                                 <iframe
@@ -478,15 +478,30 @@ const ReportsMap = () => {
                             </>
                         ) : (
                             <>
-                                <iframe
-                                    width="100%"
-                                    height="600"
-                                    style={{ border: 0, minHeight: '600px', height: '100%' }}
-                                    loading="lazy"
-                                    allowFullScreen
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                    src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`}
-                                />
+                                {/* Show placeholder when no search, otherwise show map */}
+                                {!hasSearched || !searchQuery ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <div className="text-center text-zinc-400">
+                                            <svg className="w-20 h-20 mx-auto mb-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <p className="text-lg font-medium text-zinc-600">Search for Remittance Reports</p>
+                                            <p className="text-sm text-zinc-400 mt-2">Enter a fiscal year, grantor number, name, or postcode to view reports</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <iframe
+                                            width="100%"
+                                            height="600"
+                                            style={{ border: 0, minHeight: '600px', height: '100%' }}
+                                            loading="lazy"
+                                            allowFullScreen
+                                            referrerPolicy="no-referrer-when-downgrade"
+                                            src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${location.latitude},${location.longitude}&zoom=11`}
+                                        />
+                                    </>
+                                )}
                                 {hasSearched && searchQuery && locations.length > 0 && (
                                     <>
                                         {/* Multiple Location Markers with Popup Boxes */}
