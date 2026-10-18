@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+package-lock.json
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Build outputs
+dist/
+build/
+*.log
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# Database
+*.sql.backup
+*.db
+*.sqlite
+
+# Python
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Raw signed user-agreement source PDFs (renamed copies live in backend/documents/user_agreements)
+User-agreements/
+
+# Stray Vite build output accidentally written under frontend/ (Windows path mishap)
+frontend/C*/

@@ -1,0 +1,652 @@
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from database import get_db
+from config import get_settings, Settings
+from pydantic import BaseModel
+from typing import List, Optional
+import logging
+import os
+from datetime import datetime
+import shutil
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+# Pydantic models for request/response
+class GeographicalDocument(BaseModel):
+    postcode: str
+    document_name: str
+    document_url: Optional[str] = None
+    document_type: Optional[str] = "PDF"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class RemittanceDocument(BaseModel):
+    fiscal_year: int
+    document_name: str
+    document_url: Optional[str] = None
+    document_type: Optional[str] = "PDF"
+    upload_date: Optional[str] = None
+
+
+def normalize_document_name(filename: str) -> str:
+    """
+    Strip repeated trailing extensions from an uploaded filename.
+
+    Clients sometimes submit names that already carry the extension twice
+    (e.g. "CM3 3DQ.pdf.pdf"), which then shows up verbatim in the admin
+    document lists. Collapse those to a single extension.
+    """
+    if not filename:
+        return filename
+
+    name, ext = os.path.splitext(filename)
+    while ext and os.path.splitext(name)[1].lower() == ext.lower():
+        name = os.path.splitext(name)[0]
+    return f"{name}{ext}"
+
+
+async def geocode_postcode(postcode: str, api_key: str) -> tuple:
+    """
+    Get latitude and longitude from postcode using Google Geocoding API
+    """
+    try:
+        import httpx
+        
+        # Format postcode for UK (add space if needed)
+        formatted_postcode = postcode.upper()
+        if len(formatted_postcode) > 3 and ' ' not in formatted_postcode:
+            formatted_postcode = f"{formatted_postcode[:-3]} {formatted_postcode[-3:]}"
+        
+        url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": f"{formatted_postcode}, UK",
+            "key": api_key
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            data = response.json()
+            
+            if data.get("status") == "OK" and data.get("results"):
+                location = data["results"][0]["geometry"]["location"]
+                return location["lat"], location["lng"]
+            else:
+                logger.warning(f"Geocoding failed for {postcode}: {data.get('status')}")
+                return None, None
+                
+    except Exception as e:
+        logger.error(f"Error geocoding postcode {postcode}: {str(e)}")
+        return None, None
+
+
+@router.post("/admin/reports/geographical/upload")
+async def upload_geographical_document(
+    postcode: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Upload a geographical document file with postcode
+    Automatically geocodes the postcode and saves the file
+    """
+    try:
+        logger.info(f"Received upload request - Postcode: {postcode}, File: {file.filename}, Content-Type: {file.content_type}")
+        # Clean postcode
+        clean_postcode = postcode.upper().replace(" ", "")
+        
+        # Create upload directory if it doesn't exist
+        upload_dir = "documents/geographical"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_extension = os.path.splitext(file.filename)[1]
+        safe_filename = f"{clean_postcode}_{timestamp}{file_extension}"
+        file_path = os.path.join(upload_dir, safe_filename)
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        logger.info(f"File saved: {file_path}")
+        
+        # Get coordinates
+        logger.info(f"Geocoding postcode: {clean_postcode}")
+        latitude, longitude = await geocode_postcode(clean_postcode, settings.google_maps_api_key)
+        
+        if latitude is None or longitude is None:
+            logger.warning(f"Could not geocode postcode {clean_postcode}, using default London coordinates")
+            latitude = 51.5074
+            longitude = -0.1278
+        
+        # Determine document type from file extension
+        document_type = file_extension.upper().replace(".", "")
+        
+        # Insert into database
+        insert_query = text("""
+            INSERT INTO geographical_documents 
+            (postcode, document_name, document_url, document_type, latitude, longitude, created_at)
+            VALUES (:postcode, :document_name, :document_url, :document_type, :latitude, :longitude, NOW())
+            RETURNING id
+        """)
+        
+        result = db.execute(insert_query, {
+            "postcode": clean_postcode,
+            "document_name": normalize_document_name(file.filename),
+            "document_url": f"/{file_path}",
+            "document_type": document_type,
+            "latitude": latitude,
+            "longitude": longitude
+        })
+        
+        doc_id = result.fetchone()[0]
+        db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": "Document uploaded successfully",
+            "document_id": doc_id,
+            "file_path": file_path,
+            "geocoded": {
+                "latitude": latitude,
+                "longitude": longitude
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading geographical document: {str(e)}")
+        db.rollback()
+        # Clean up file if database insert failed
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/reports/geographical")
+async def add_geographical_document(doc: GeographicalDocument, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
+    """
+    Add a geographical document linked to a postcode
+    Automatically geocodes the postcode if latitude/longitude not provided
+    """
+    try:
+        # Clean postcode
+        clean_postcode = doc.postcode.upper().replace(" ", "")
+        
+        # Get coordinates if not provided
+        latitude = doc.latitude
+        longitude = doc.longitude
+        
+        if latitude is None or longitude is None:
+            logger.info(f"Geocoding postcode: {clean_postcode}")
+            latitude, longitude = await geocode_postcode(clean_postcode, settings.google_maps_api_key)
+            
+            if latitude is None or longitude is None:
+                logger.warning(f"Could not geocode postcode {clean_postcode}, using default London coordinates")
+                latitude = 51.5074
+                longitude = -0.1278
+        
+        # Insert geographical document
+        insert_query = text("""
+            INSERT INTO geographical_documents 
+            (postcode, document_name, document_url, document_type, latitude, longitude, created_at)
+            VALUES (:postcode, :document_name, :document_url, :document_type, :latitude, :longitude, NOW())
+            RETURNING id
+        """)
+        
+        result = db.execute(insert_query, {
+            "postcode": clean_postcode,
+            "document_name": doc.document_name,
+            "document_url": doc.document_url,
+            "document_type": doc.document_type,
+            "latitude": latitude,
+            "longitude": longitude
+        })
+        
+        doc_id = result.fetchone()[0]
+        db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": "Geographical document added successfully",
+            "document_id": doc_id,
+            "geocoded": {
+                "latitude": latitude,
+                "longitude": longitude
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding geographical document: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/reports/geographical/{postcode}")
+async def get_geographical_documents(postcode: str, db: Session = Depends(get_db)):
+    """
+    Get all documents for a specific postcode with user details
+    """
+    try:
+        # Clean postcode
+        clean_postcode = postcode.upper().replace(" ", "")
+        
+        # Get documents for postcode joined with vendors table
+        # Handle null first_name or last_name - show only the available name
+        # Support partial postcode matching (geofencing) - e.g., "CM3" matches "CM33DQ", "CM330DQ", etc.
+        query = text("""
+            SELECT 
+                gd.id,
+                gd.postcode,
+                gd.document_name,
+                gd.document_url,
+                gd.document_type,
+                gd.latitude,
+                gd.longitude,
+                gd.created_at,
+                gd.vendor_id,
+                v.first_name,
+                v.last_name,
+                CASE 
+                    WHEN v.first_name IS NOT NULL AND v.last_name IS NOT NULL 
+                        THEN CONCAT(v.first_name, ' ', v.last_name)
+                    WHEN v.first_name IS NOT NULL 
+                        THEN v.first_name
+                    WHEN v.last_name IS NOT NULL 
+                        THEN v.last_name
+                    ELSE gd.grantor_name
+                END as full_name,
+                rr.fiscal_year as remittance_year,
+                rr.document_name as remittance_document_name,
+                rr.document_url as remittance_document_url
+            FROM geographical_documents gd
+            LEFT JOIN vendors v ON gd.vendor_id = v.vendor_id
+            -- Latest remittance report for the grantor (by postcode when the
+            -- agreement has no grantor number)
+            LEFT JOIN LATERAL (
+                SELECT r.fiscal_year, r.document_name, r.document_url
+                FROM remittance_reports r
+                WHERE r.vendor_id = gd.vendor_id
+                   OR (gd.vendor_id IS NULL AND r.vendor_id IS NULL AND r.postcode = gd.postcode)
+                ORDER BY r.fiscal_year DESC, r.created_at DESC
+                LIMIT 1
+            ) rr ON TRUE
+            WHERE gd.postcode LIKE :postcode || '%'
+            ORDER BY gd.created_at DESC
+        """)
+        
+        results = db.execute(query, {"postcode": clean_postcode}).fetchall()
+        
+        documents = []
+        for row in results:
+            documents.append({
+                "id": row[0],
+                "postcode": row[1],
+                "document_name": row[2],
+                "document_url": row[3],
+                "document_type": row[4],
+                "latitude": float(row[5]) if row[5] else None,
+                "longitude": float(row[6]) if row[6] else None,
+                "created_at": row[7].isoformat() if row[7] else None,
+                "vendor_id": row[8],
+                "first_name": row[9],
+                "last_name": row[10],
+                "full_name": row[11],  # Combined name handling nulls
+                "latest_remittance": {
+                    "fiscal_year": row[12],
+                    "document_name": row[13],
+                    "document_url": row[14],
+                } if row[14] else None
+            })
+        
+        # Get count with partial matching
+        count_query = text("""
+            SELECT COUNT(*) FROM geographical_documents WHERE postcode LIKE :postcode || '%'
+        """)
+        count = db.execute(count_query, {"postcode": clean_postcode}).fetchone()[0]
+        
+        # Calculate center point for multiple locations (average of all coordinates)
+        if documents and any(doc["latitude"] and doc["longitude"] for doc in documents):
+            valid_coords = [(doc["latitude"], doc["longitude"]) for doc in documents if doc["latitude"] and doc["longitude"]]
+            avg_lat = sum(lat for lat, _ in valid_coords) / len(valid_coords)
+            avg_lng = sum(lng for _, lng in valid_coords) / len(valid_coords)
+            center_location = {"latitude": avg_lat, "longitude": avg_lng}
+        else:
+            center_location = {"latitude": 51.5074, "longitude": -0.1278}
+        
+        return JSONResponse(content={
+            "success": True,
+            "postcode": postcode,
+            "count": count,
+            "documents": documents,
+            "location": center_location,
+            "is_partial_match": len(clean_postcode) < 6  # Indicate if this was a partial search
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching geographical documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/reports/remittance/upload")
+async def upload_remittance_document(
+    fiscal_year: int = Form(...),
+    file: UploadFile = File(...),
+    upload_date: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload a remittance document file for a fiscal year
+    """
+    try:
+        # Create upload directory if it doesn't exist
+        upload_dir = f"documents/remittance/{fiscal_year}"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_extension = os.path.splitext(file.filename)[1]
+        safe_filename = f"{fiscal_year}_{timestamp}{file_extension}"
+        file_path = os.path.join(upload_dir, safe_filename)
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        logger.info(f"File saved: {file_path}")
+        
+        # Determine document type from file extension
+        document_type = file_extension.upper().replace(".", "")
+        
+        # Insert into database
+        insert_query = text("""
+            INSERT INTO remittance_reports 
+            (fiscal_year, document_name, document_url, document_type, upload_date, created_at)
+            VALUES (:fiscal_year, :document_name, :document_url, :document_type, :upload_date, NOW())
+            RETURNING id
+        """)
+        
+        result = db.execute(insert_query, {
+            "fiscal_year": fiscal_year,
+            "document_name": normalize_document_name(file.filename),
+            "document_url": f"/{file_path}",
+            "document_type": document_type,
+            "upload_date": upload_date
+        })
+        
+        doc_id = result.fetchone()[0]
+        db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": "Document uploaded successfully",
+            "document_id": doc_id,
+            "file_path": file_path
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading remittance document: {str(e)}")
+        db.rollback()
+        # Clean up file if database insert failed
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/reports/remittance")
+async def add_remittance_document(doc: RemittanceDocument, db: Session = Depends(get_db)):
+    """
+    Add a remittance document for a fiscal year
+    """
+    try:
+        # Insert remittance document
+        insert_query = text("""
+            INSERT INTO remittance_reports 
+            (fiscal_year, document_name, document_url, document_type, upload_date, created_at)
+            VALUES (:fiscal_year, :document_name, :document_url, :document_type, :upload_date, NOW())
+            RETURNING id
+        """)
+        
+        result = db.execute(insert_query, {
+            "fiscal_year": doc.fiscal_year,
+            "document_name": doc.document_name,
+            "document_url": doc.document_url,
+            "document_type": doc.document_type,
+            "upload_date": doc.upload_date
+        })
+        
+        doc_id = result.fetchone()[0]
+        db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": "Remittance document added successfully",
+            "document_id": doc_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding remittance document: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/reports/remittance/search/{search_query}")
+async def search_remittance_documents(search_query: str, db: Session = Depends(get_db)):
+    """
+    Universal search for remittance documents
+    Search by: fiscal year, grantor number, grantor name, or postcode
+    """
+    try:
+        # Clean search query
+        clean_query = search_query.strip().upper()
+        
+        # Build flexible query that searches across multiple fields
+        # Support partial matching anywhere in the field (not just beginning)
+        query = text("""
+            SELECT 
+                rr.id,
+                rr.fiscal_year,
+                rr.document_name,
+                rr.document_url,
+                rr.document_type,
+                rr.created_at as upload_date,
+                rr.created_at,
+                rr.postcode,
+                rr.vendor_id,
+                v.first_name,
+                v.last_name,
+                CASE 
+                    WHEN v.first_name IS NOT NULL AND v.last_name IS NOT NULL 
+                        THEN CONCAT(v.first_name, ' ', v.last_name)
+                    WHEN v.first_name IS NOT NULL 
+                        THEN v.first_name
+                    WHEN v.last_name IS NOT NULL 
+                        THEN v.last_name
+                    ELSE rr.grantor_name
+                END as grantor_name
+            FROM remittance_reports rr
+            LEFT JOIN vendors v ON rr.vendor_id = v.vendor_id
+            WHERE 
+                CAST(rr.fiscal_year AS TEXT) LIKE :query || '%'
+                OR rr.vendor_id LIKE '%' || :query || '%'
+                OR UPPER(v.first_name) LIKE '%' || :query || '%'
+                OR UPPER(v.last_name) LIKE '%' || :query || '%'
+                OR UPPER(CONCAT(v.first_name, ' ', v.last_name)) LIKE '%' || :query || '%'
+                OR UPPER(rr.grantor_name) LIKE '%' || :query || '%'
+                OR rr.postcode LIKE '%' || :query || '%'
+            ORDER BY rr.created_at DESC
+        """)
+        
+        results = db.execute(query, {"query": clean_query}).fetchall()
+        
+        documents = []
+        for row in results:
+            documents.append({
+                "id": row[0],
+                "fiscal_year": row[1],
+                "document_name": row[2],
+                "document_url": row[3],
+                "document_type": row[4],
+                "upload_date": row[5].isoformat() if row[5] else None,
+                "created_at": row[6].isoformat() if row[6] else None,
+                "postcode": row[7],
+                "vendor_id": row[8],
+                "first_name": row[9],
+                "last_name": row[10],
+                "grantor_name": row[11]
+            })
+        
+        return JSONResponse(content={
+            "success": True,
+            "search_query": search_query,
+            "count": len(documents),
+            "documents": documents
+        })
+        
+    except Exception as e:
+        logger.error(f"Error searching remittance documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/reports/remittance/{fiscal_year}")
+async def get_remittance_documents(fiscal_year: int, db: Session = Depends(get_db)):
+    """
+    Get all remittance documents for a specific fiscal year with user details
+    (Legacy endpoint - use /search/ for flexible searching)
+    """
+    try:
+        # Get documents for fiscal year with full vendor details
+        # Handle null first_name or last_name - show only the available name
+        query = text("""
+            SELECT 
+                rr.id,
+                rr.fiscal_year,
+                rr.document_name,
+                rr.document_url,
+                rr.document_type,
+                rr.created_at as upload_date,
+                rr.created_at,
+                rr.postcode,
+                rr.vendor_id,
+                v.first_name,
+                v.last_name,
+                CASE 
+                    WHEN v.first_name IS NOT NULL AND v.last_name IS NOT NULL 
+                        THEN CONCAT(v.first_name, ' ', v.last_name)
+                    WHEN v.first_name IS NOT NULL 
+                        THEN v.first_name
+                    WHEN v.last_name IS NOT NULL 
+                        THEN v.last_name
+                    ELSE rr.grantor_name
+                END as grantor_name
+            FROM remittance_reports rr
+            LEFT JOIN vendors v ON rr.vendor_id = v.vendor_id
+            WHERE rr.fiscal_year = :fiscal_year
+            ORDER BY rr.created_at DESC
+        """)
+        
+        results = db.execute(query, {"fiscal_year": fiscal_year}).fetchall()
+        
+        documents = []
+        for row in results:
+            documents.append({
+                "id": row[0],
+                "fiscal_year": row[1],
+                "document_name": row[2],
+                "document_url": row[3],
+                "document_type": row[4],
+                "upload_date": row[5].isoformat() if row[5] else None,
+                "created_at": row[6].isoformat() if row[6] else None,
+                "postcode": row[7],
+                "vendor_id": row[8],
+                "first_name": row[9],
+                "last_name": row[10],
+                "grantor_name": row[11]
+            })
+        
+        # Get count
+        count_query = text("""
+            SELECT COUNT(*) FROM remittance_reports WHERE fiscal_year = :fiscal_year
+        """)
+        count = db.execute(count_query, {"fiscal_year": fiscal_year}).fetchone()[0]
+        
+        return JSONResponse(content={
+            "success": True,
+            "fiscal_year": fiscal_year,
+            "count": count,
+            "documents": documents
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching remittance documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/reports/test-upload")
+async def test_upload(
+    postcode: str = Form(None),
+    file: UploadFile = File(None)
+):
+    """
+    Test endpoint to verify file upload is working
+    """
+    logger.info(f"Test upload called - postcode: {postcode}, file: {file}")
+    
+    if not postcode:
+        return JSONResponse(status_code=400, content={"error": "postcode is missing"})
+    
+    if not file:
+        return JSONResponse(status_code=400, content={"error": "file is missing"})
+    
+    return JSONResponse(content={
+        "success": True,
+        "postcode": postcode,
+        "filename": file.filename,
+        "content_type": file.content_type
+    })
+
+
+@router.get("/admin/reports/stats")
+async def get_reports_stats(db: Session = Depends(get_db)):
+    """
+    Get statistics for reports dashboard
+    """
+    try:
+        # Get geographical stats
+        geo_stats_query = text("""
+            SELECT 
+                COUNT(DISTINCT postcode) as unique_postcodes,
+                COUNT(*) as total_documents
+            FROM geographical_documents
+        """)
+        geo_stats = db.execute(geo_stats_query).fetchone()
+        
+        # Get remittance stats
+        rem_stats_query = text("""
+            SELECT 
+                COUNT(DISTINCT fiscal_year) as unique_years,
+                COUNT(*) as total_documents
+            FROM remittance_reports
+        """)
+        rem_stats = db.execute(rem_stats_query).fetchone()
+        
+        return JSONResponse(content={
+            "success": True,
+            "geographical": {
+                "unique_postcodes": geo_stats[0] if geo_stats else 0,
+                "total_documents": geo_stats[1] if geo_stats else 0
+            },
+            "remittance": {
+                "unique_years": rem_stats[0] if rem_stats else 0,
+                "total_documents": rem_stats[1] if rem_stats else 0
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching reports stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
