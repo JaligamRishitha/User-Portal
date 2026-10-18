@@ -1,31 +1,63 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
+const EMPTY_METADATA = {
+    grantorName: '',
+    grantorNumber: '',
+    grantorAddress: '',
+    grantorPostcode: '',
+    grantorTelephone: '',
+    grantorEmail: '',
+    agreementDate: '',
+    agreementRef: '',
+    companyWith: '',
+    tqNumber: '',
+    payment: '',
+    duration: '',
+    propertyLocation: '',
+    worksDescription: '',
+    drawingNumber: ''
+};
+
+const VALID_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'application/pdf'];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Columns of the Grantor Details Excel export, in the same order as the Grantor Details card
+const GRANTOR_EXPORT_COLUMNS = [
+    { header: 'File Name', key: 'fileName', width: 36 },
+    { header: 'Grantor Name', key: 'grantorName', width: 32 },
+    { header: 'Agreement No', key: 'agreementRef', width: 16 },
+    { header: 'TQ/TL Number', key: 'tqNumber', width: 18 },
+    { header: 'Address', key: 'grantorAddress', width: 50 },
+    { header: 'Postcode', key: 'grantorPostcode', width: 12 },
+    { header: 'Telephone', key: 'grantorTelephone', width: 18 },
+    { header: 'Email', key: 'grantorEmail', width: 32 },
+];
+
+const BULK_STATUS_STYLES = {
+    pending: 'bg-zinc-100 text-zinc-600',
+    processing: 'bg-blue-100 text-blue-700',
+    done: 'bg-green-100 text-green-700',
+    saved: 'bg-emerald-600 text-white',
+    failed: 'bg-red-100 text-red-700',
+    invalid: 'bg-red-100 text-red-700',
+};
+
 const OCRUpload = () => {
+    const [uploadMode, setUploadMode] = useState('single'); // 'single' | 'bulk'
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [extractedText, setExtractedText] = useState('');
     const [ocrResult, setOcrResult] = useState(null);
-    const [metadata, setMetadata] = useState({
-        grantorName: '',
-            grantorNumber: '',
-        grantorAddress: '',
-        grantorPostcode: '',
-        grantorTelephone: '',
-        grantorEmail: '',
-        agreementDate: '',
-        agreementRef: '',
-        companyWith: '',
-        tqNumber: '',
-        payment: '',
-        duration: '',
-        propertyLocation: '',
-        worksDescription: '',
-        drawingNumber: ''
-    });
+    const [metadata, setMetadata] = useState(EMPTY_METADATA);
     const [savedDocuments, setSavedDocuments] = useState([]);
     const [viewingDocument, setViewingDocument] = useState(null);
+    // Bulk mode: one entry per file - { id, file, status, error, text, result, metadata }
+    const [bulkItems, setBulkItems] = useState([]);
+    const [activeBulkId, setActiveBulkId] = useState(null);
+    const [bulkRunning, setBulkRunning] = useState(false);
 
     const OCR_API_KEY = import.meta.env.VITE_OCR_API_KEY || '';
     const OCR_API_URL = import.meta.env.VITE_OCR_API_URL || 'http://149.102.158.71:2101/api';
@@ -101,26 +133,21 @@ const OCRUpload = () => {
         });
     };
 
-    const handleFileSelect = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validate file type
-            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'application/pdf'];
-            if (!validTypes.includes(file.type)) {
-                Swal.fire({
-                    title: 'Invalid File Type',
-                    text: 'Please upload an image (JPG, PNG, GIF, BMP) or PDF file',
-                    icon: 'error',
-                    confirmButtonColor: '#ea580c',
-                });
-                return;
-            }
+    // Validate a file and compress large images. Throws an Error (with a .title) if unusable.
+    // `interactive` shows progress dialogs - used for single uploads, not bulk.
+    const prepareFile = async (file, interactive) => {
+        const fail = (title, message) => Object.assign(new Error(message), { title });
 
-            let processedFile = file;
+        if (!VALID_TYPES.includes(file.type)) {
+            throw fail('Invalid File Type', 'Please upload an image (JPG, PNG, GIF, BMP) or PDF file');
+        }
 
-            // Compress images if they're too large
-            if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
-                try {
+        let processedFile = file;
+
+        // Compress images if they're too large
+        if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
+            try {
+                if (interactive) {
                     Swal.fire({
                         title: 'Compressing Image...',
                         text: 'Please wait while we optimize your image',
@@ -129,11 +156,12 @@ const OCRUpload = () => {
                             Swal.showLoading();
                         }
                     });
+                }
 
-                    processedFile = await compressImage(file, 2);
+                processedFile = await compressImage(file, 2);
 
+                if (interactive) {
                     Swal.close();
-
                     Swal.fire({
                         title: 'Image Compressed',
                         text: `Original: ${(file.size / 1024).toFixed(0)}KB → Compressed: ${(processedFile.size / 1024).toFixed(0)}KB`,
@@ -141,8 +169,10 @@ const OCRUpload = () => {
                         timer: 2000,
                         showConfirmButton: false,
                     });
-                } catch (error) {
-                    console.error('Compression error:', error);
+                }
+            } catch (error) {
+                console.error('Compression error:', error);
+                if (interactive) {
                     Swal.fire({
                         title: 'Compression Failed',
                         text: 'Using original file. It may be too large for the server.',
@@ -151,12 +181,27 @@ const OCRUpload = () => {
                     });
                 }
             }
+        }
 
-            // Validate final file size (max 3MB for server)
-            if (processedFile.size > 3 * 1024 * 1024) {
+        // Validate final file size (max 3MB for server)
+        if (processedFile.size > 3 * 1024 * 1024) {
+            throw fail('File Too Large', 'Please upload a file smaller than 3MB. Try a lower resolution image.');
+        }
+
+        return processedFile;
+    };
+
+    const handleFileSelect = async (e) => {
+        const file = e.target.files[0];
+        e.target.value = ''; // allow re-selecting the same file
+        if (file) {
+            let processedFile;
+            try {
+                processedFile = await prepareFile(file, true);
+            } catch (error) {
                 Swal.fire({
-                    title: 'File Too Large',
-                    text: 'Please upload a file smaller than 3MB. Try a lower resolution image.',
+                    title: error.title || 'Invalid File',
+                    text: error.message,
                     icon: 'error',
                     confirmButtonColor: '#ea580c',
                 });
@@ -179,27 +224,42 @@ const OCRUpload = () => {
             // Reset previous results
             setExtractedText('');
             setOcrResult(null);
-            setMetadata({
-                grantorName: '',
-            grantorNumber: '',
-                grantorAddress: '',
-                grantorPostcode: '',
-                grantorTelephone: '',
-                grantorEmail: '',
-                agreementDate: '',
-                agreementRef: '',
-                tqNumber: '',
-                payment: '',
-                duration: '',
-                propertyLocation: '',
-                worksDescription: '',
-                drawingNumber: ''
-            });
+            setMetadata(EMPTY_METADATA);
         }
+    };
+
+    const updateBulkItem = (id, patch) => {
+        setBulkItems((items) => items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    };
+
+    const addBulkFiles = async (fileList) => {
+        const files = Array.from(fileList);
+        if (!files.length) return;
+
+        const newItems = await Promise.all(files.map(async (file) => {
+            const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            try {
+                const prepared = await prepareFile(file, false);
+                return { id, file: prepared, status: 'pending', error: '' };
+            } catch (error) {
+                return { id, file, status: 'invalid', error: error.message };
+            }
+        }));
+        setBulkItems((items) => [...items, ...newItems]);
+    };
+
+    const handleBulkSelect = (e) => {
+        const files = e.target.files;
+        addBulkFiles(files);
+        e.target.value = ''; // allow re-selecting the same files
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
+        if (uploadMode === 'bulk') {
+            if (!bulkRunning) addBulkFiles(e.dataTransfer.files);
+            return;
+        }
         const file = e.dataTransfer.files[0];
         if (file) {
             const fakeEvent = { target: { files: [file] } };
@@ -400,6 +460,73 @@ const OCRUpload = () => {
         return data;
     };
 
+    // Fetch the text of a processed OCR document
+    const fetchDocumentText = async (documentId) => {
+        const response = await fetch(`${OCR_API_URL}/documents/${documentId}/content?api_key=${OCR_API_KEY}`);
+        const data = await response.json();
+
+        // Try multiple possible response formats
+        const text = data.result?.extracted_text || data.extracted_text || data.text;
+        if (!response.ok || !text) {
+            console.error('No text found in response:', data);
+            throw new Error('Failed to retrieve document content - no text found');
+        }
+        return { text, result: data.result || data };
+    };
+
+    const pollTaskStatus = async (taskId) => {
+        const maxWaitMs = 120000; // give up after ~2 minutes
+        const startTime = Date.now();
+        let delay = 800; // start fast, then back off to avoid hammering the server
+
+        while (Date.now() - startTime < maxWaitMs) {
+            const response = await fetch(`${OCR_API_URL}/task-status/${taskId}?api_key=${OCR_API_KEY}`);
+            const data = await response.json();
+
+            if (data.status === 'completed') {
+                // Prefer inline text if present — saves an extra round-trip to /documents/{id}/content
+                if (data.result?.extracted_text) {
+                    return { text: data.result.extracted_text, result: data.result };
+                }
+                if (data.document_id) return fetchDocumentText(data.document_id);
+                throw new Error('OCR completed but returned no text');
+            }
+            if (data.status === 'failed' || data.status === 'error') {
+                throw new Error(data.error || data.message || 'OCR processing failed');
+            }
+
+            await sleep(delay);
+            delay = Math.min(Math.round(delay * 1.3), 3000); // ramp 800ms -> 3s cap
+        }
+        throw new Error('OCR processing timed out. The document may be too large or complex.');
+    };
+
+    // Send a file to the OCR service and resolve with { text, result }
+    const runOcr = async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${OCR_API_URL}/upload/?api_key=${OCR_API_KEY}`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (response.status === 413) {
+            throw new Error('File is too large for the server. Please use a smaller file (under 2MB).');
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || data.error || 'OCR processing failed');
+        }
+
+        // Direct response, async task, or stored document
+        if (data.result?.extracted_text) return { text: data.result.extracted_text, result: data.result };
+        if (data.task_id) return pollTaskStatus(data.task_id);
+        if (data.document_id) return fetchDocumentText(data.document_id);
+        throw new Error('Unexpected response format from OCR API');
+    };
+
     const handleUpload = async () => {
         if (!selectedFile) {
             Swal.fire({
@@ -414,39 +541,17 @@ const OCRUpload = () => {
         setLoading(true);
 
         try {
-            const formData = new FormData();
-            formData.append('file', selectedFile);
+            const { text, result } = await runOcr(selectedFile);
+            setExtractedText(text);
+            setOcrResult(result);
+            setMetadata(extractWayleaveData(text));
 
-            const response = await fetch(`${OCR_API_URL}/upload/?api_key=${OCR_API_KEY}`, {
-                method: 'POST',
-                body: formData,
+            Swal.fire({
+                title: 'Success!',
+                text: 'Text extracted successfully',
+                icon: 'success',
+                confirmButtonColor: '#ea580c',
             });
-
-            if (response.status === 413) {
-                throw new Error('File is too large for the server. Please use a smaller file (under 2MB).');
-            }
-
-            const data = await response.json();
-            console.log('Upload response:', data);
-
-            if (response.ok) {
-                // Check if response has result with extracted_text (direct response)
-                if (data.result && data.result.extracted_text) {
-                    applyExtractedText(data.result.extracted_text, data.result);
-                }
-                // Check for task_id (async processing)
-                else if (data.task_id) {
-                    await pollTaskStatus(data.task_id);
-                }
-                // Check for document_id
-                else if (data.document_id) {
-                    await getDocumentContent(data.document_id);
-                } else {
-                    throw new Error('Unexpected response format from OCR API');
-                }
-            } else {
-                throw new Error(data.detail || data.error || 'OCR processing failed');
-            }
         } catch (error) {
             console.error('OCR Error:', error);
             Swal.fire({
@@ -455,100 +560,110 @@ const OCRUpload = () => {
                 icon: 'error',
                 confirmButtonColor: '#ea580c',
             });
-            setLoading(false);
-        }
-    };
-
-    // Shared handler: apply extracted OCR text to state, parse wayleave data, notify.
-    const applyExtractedText = (text, result) => {
-        setExtractedText(text);
-        setOcrResult(result || { extracted_text: text });
-
-        const extractedData = extractWayleaveData(text);
-        setMetadata(extractedData);
-
-        Swal.fire({
-            title: 'Success!',
-            text: 'Text extracted successfully',
-            icon: 'success',
-            confirmButtonColor: '#ea580c',
-        });
-        setLoading(false);
-    };
-
-    const pollTaskStatus = async (taskId) => {
-        const maxWaitMs = 120000; // give up after ~2 minutes
-        const startTime = Date.now();
-        let delay = 800; // start fast, then back off to avoid hammering the server
-
-        const checkStatus = async () => {
-            try {
-                const elapsed = Date.now() - startTime;
-                console.log(`Polling task ${taskId} (elapsed ${(elapsed / 1000).toFixed(1)}s, next check in ${delay}ms)`);
-                const response = await fetch(`${OCR_API_URL}/task-status/${taskId}?api_key=${OCR_API_KEY}`);
-                const data = await response.json();
-                console.log('Task status response:', data);
-
-                if (data.status === 'completed') {
-                    console.log('Task completed, document_id:', data.document_id);
-                    // Prefer inline text if present — saves an extra round-trip to /documents/{id}/content
-                    if (data.result && data.result.extracted_text) {
-                        applyExtractedText(data.result.extracted_text, data.result);
-                    } else if (data.document_id) {
-                        await getDocumentContent(data.document_id);
-                    } else {
-                        throw new Error('OCR completed but returned no text');
-                    }
-                } else if (data.status === 'failed' || data.status === 'error') {
-                    throw new Error(data.error || data.message || 'OCR processing failed');
-                } else if (elapsed < maxWaitMs) {
-                    setTimeout(checkStatus, delay);
-                    delay = Math.min(Math.round(delay * 1.3), 3000); // ramp 800ms -> 3s cap
-                } else {
-                    console.error('Polling timed out after', (elapsed / 1000).toFixed(0), 'seconds');
-                    throw new Error('OCR processing timed out. The document may be too large or complex.');
-                }
-            } catch (error) {
-                console.error('Polling error:', error);
-                setLoading(false);
-                throw error;
-            }
-        };
-
-        await checkStatus();
-    };
-
-    const getDocumentContent = async (documentId) => {
-        try {
-            console.log('Fetching document content for:', documentId);
-            const response = await fetch(`${OCR_API_URL}/documents/${documentId}/content?api_key=${OCR_API_KEY}`);
-            const data = await response.json();
-            console.log('Document content response:', data);
-
-            let extractedTextContent = null;
-
-            // Try multiple possible response formats
-            if (data.result && data.result.extracted_text) {
-                extractedTextContent = data.result.extracted_text;
-            } else if (data.extracted_text) {
-                extractedTextContent = data.extracted_text;
-            } else if (data.text) {
-                extractedTextContent = data.text;
-            }
-
-            if (response.ok && extractedTextContent) {
-                console.log('Setting extracted text, length:', extractedTextContent.length);
-                applyExtractedText(extractedTextContent, data.result || data);
-            } else {
-                console.error('No text found in response:', data);
-                throw new Error('Failed to retrieve document content - no text found');
-            }
-        } catch (error) {
-            console.error('Error getting document content:', error);
-            throw error;
         } finally {
             setLoading(false);
         }
+    };
+
+    // Extract every pending/failed file one at a time so the OCR server isn't flooded
+    const handleBulkExtract = async () => {
+        const queue = bulkItems.filter((item) => item.status === 'pending' || item.status === 'failed');
+        if (!queue.length) return;
+
+        setBulkRunning(true);
+        let succeeded = 0;
+
+        for (const item of queue) {
+            updateBulkItem(item.id, { status: 'processing', error: '' });
+            try {
+                const { text, result } = await runOcr(item.file);
+                updateBulkItem(item.id, { status: 'done', text, result, metadata: extractWayleaveData(text) });
+                succeeded++;
+            } catch (error) {
+                console.error(`OCR Error (${item.file.name}):`, error);
+                updateBulkItem(item.id, { status: 'failed', error: error.message || 'OCR processing failed' });
+            }
+        }
+
+        setBulkRunning(false);
+        const failed = queue.length - succeeded;
+        Swal.fire({
+            title: failed ? 'Bulk Extraction Finished' : 'Success!',
+            text: `${succeeded} of ${queue.length} file${queue.length !== 1 ? 's' : ''} extracted${failed ? `, ${failed} failed` : ''}. Click a file to review its details.`,
+            icon: failed ? (succeeded ? 'warning' : 'error') : 'success',
+            confirmButtonColor: '#ea580c',
+        });
+    };
+
+    // Show a bulk item's results in the right-hand panel
+    const handleViewBulkItem = (item) => {
+        if (item.status !== 'done' && item.status !== 'saved') return;
+        setActiveBulkId(item.id);
+        setSelectedFile(item.file);
+        setExtractedText(item.text);
+        setOcrResult(item.result);
+        setMetadata(item.metadata);
+    };
+
+    // Download the Grantor Details of every extracted bulk file as an .xlsx sheet
+    const handleExportGrantors = async () => {
+        const extracted = bulkItems.filter((item) => item.status === 'done' || item.status === 'saved');
+        if (!extracted.length) return;
+
+        try {
+            // Loaded on demand - keeps exceljs out of the main bundle
+            const { default: ExcelJS } = await import('exceljs');
+            const workbook = new ExcelJS.Workbook();
+            const sheet = workbook.addWorksheet('Grantor Details', {
+                views: [{ state: 'frozen', ySplit: 1 }],
+            });
+
+            sheet.columns = GRANTOR_EXPORT_COLUMNS;
+            extracted.forEach((item) => {
+                sheet.addRow({ ...item.metadata, fileName: item.file.name });
+            });
+
+            const header = sheet.getRow(1);
+            header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEA580C' } };
+            header.alignment = { vertical: 'middle' };
+            sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: GRANTOR_EXPORT_COLUMNS.length } };
+            sheet.getColumn('grantorAddress').alignment = { wrapText: true, vertical: 'top' };
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `grantor_details_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Excel export error:', error);
+            Swal.fire({
+                title: 'Export Failed',
+                text: error.message || 'Failed to export grantor details to Excel',
+                icon: 'error',
+                confirmButtonColor: '#ea580c',
+            });
+        }
+    };
+
+    const handleRemoveBulkItem = (id) => {
+        setBulkItems((items) => items.filter((item) => item.id !== id));
+        if (id === activeBulkId) handleClear();
+    };
+
+    const handleClearBulk = () => {
+        setBulkItems([]);
+        handleClear();
+    };
+
+    const handleModeChange = (mode) => {
+        if (mode === uploadMode) return;
+        handleClear();
+        setBulkItems([]);
+        setUploadMode(mode);
     };
 
     const handleClear = () => {
@@ -556,20 +671,46 @@ const OCRUpload = () => {
         setPreviewUrl(null);
         setExtractedText('');
         setOcrResult(null);
-        setMetadata({
-            grantorName: '',
-            grantorNumber: '',
-            grantorAddress: '',
-            grantorTelephone: '',
-            grantorEmail: '',
-            agreementDate: '',
-            agreementRef: '',
-            payment: '',
-            duration: '',
-            propertyLocation: '',
-            worksDescription: '',
-            drawingNumber: ''
+        setMetadata(EMPTY_METADATA);
+        setActiveBulkId(null);
+    };
+
+    // POST one extracted agreement to the backend and add it to the saved list
+    const saveAgreement = async (filename, data, text) => {
+        const wayleaveData = {
+            filename: filename || 'Unknown',
+            grantor_name: data.grantorName,
+            grantor_address: data.grantorAddress,
+            grantor_postcode: data.grantorPostcode,
+            grantor_telephone: data.grantorTelephone,
+            grantor_email: data.grantorEmail,
+            agreement_date: data.agreementDate,
+            agreement_ref: data.agreementRef,
+            company_with: data.companyWith,
+            tq_number: data.tqNumber,
+            payment: data.payment,
+            duration: data.duration,
+            property_location: data.propertyLocation,
+            works_description: data.worksDescription,
+            drawing_number: data.drawingNumber,
+            extracted_text: text
+        };
+
+        const response = await fetch(`${API_BASE_URL}/admin/wayleave-agreements`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(wayleaveData),
         });
+
+        if (!response.ok) {
+            throw new Error('Failed to save wayleave agreement');
+        }
+
+        const savedDoc = await response.json();
+        setSavedDocuments((docs) => [savedDoc, ...docs]);
+        return savedDoc;
     };
 
     const handleSave = async () => {
@@ -584,41 +725,8 @@ const OCRUpload = () => {
         }
 
         try {
-            const wayleaveData = {
-                filename: selectedFile?.name || 'Unknown',
-                grantor_name: metadata.grantorName,
-                grantor_address: metadata.grantorAddress,
-                grantor_postcode: metadata.grantorPostcode,
-                grantor_telephone: metadata.grantorTelephone,
-                grantor_email: metadata.grantorEmail,
-                agreement_date: metadata.agreementDate,
-                agreement_ref: metadata.agreementRef,
-                company_with: metadata.companyWith,
-                tq_number: metadata.tqNumber,
-                payment: metadata.payment,
-                duration: metadata.duration,
-                property_location: metadata.propertyLocation,
-                works_description: metadata.worksDescription,
-                drawing_number: metadata.drawingNumber,
-                extracted_text: extractedText
-            };
-
-            const response = await fetch(`${API_BASE_URL}/admin/wayleave-agreements`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(wayleaveData),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to save wayleave agreement');
-            }
-
-            const savedDoc = await response.json();
-
-            // Add to local state
-            setSavedDocuments([savedDoc, ...savedDocuments]);
+            await saveAgreement(selectedFile?.name, metadata, extractedText);
+            if (activeBulkId) updateBulkItem(activeBulkId, { status: 'saved' });
 
             Swal.fire({
                 title: 'Saved!',
@@ -640,6 +748,33 @@ const OCRUpload = () => {
                 confirmButtonColor: '#ea580c',
             });
         }
+    };
+
+    const handleSaveAll = async () => {
+        const toSave = bulkItems.filter((item) => item.status === 'done');
+        if (!toSave.length) return;
+
+        setBulkRunning(true);
+        let saved = 0;
+        for (const item of toSave) {
+            try {
+                await saveAgreement(item.file.name, item.metadata, item.text);
+                updateBulkItem(item.id, { status: 'saved' });
+                saved++;
+            } catch (error) {
+                console.error(`Save error (${item.file.name}):`, error);
+                updateBulkItem(item.id, { error: error.message || 'Failed to save' });
+            }
+        }
+        setBulkRunning(false);
+        handleClear();
+
+        Swal.fire({
+            title: saved === toSave.length ? 'Saved!' : 'Some Saves Failed',
+            text: `${saved} of ${toSave.length} agreement${toSave.length !== 1 ? 's' : ''} saved to database`,
+            icon: saved === toSave.length ? 'success' : 'warning',
+            confirmButtonColor: '#ea580c',
+        });
     };
 
     const handleView = (doc) => {
@@ -706,7 +841,30 @@ const OCRUpload = () => {
                 <div className="flex flex-col gap-4">
                     {/* File Upload Area */}
                     <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
-                        <h3 className="text-lg font-semibold text-zinc-900 mb-4">Upload Document</h3>
+                        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                            <h3 className="text-lg font-semibold text-zinc-900">
+                                {uploadMode === 'bulk' ? 'Upload Documents' : 'Upload Document'}
+                            </h3>
+                            {/* Single / Bulk toggle */}
+                            <div className="inline-flex p-1 bg-zinc-100 rounded-lg" role="tablist">
+                                {[['single', 'Single File'], ['bulk', 'Bulk Files']].map(([mode, label]) => (
+                                    <button
+                                        key={mode}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={uploadMode === mode}
+                                        onClick={() => handleModeChange(mode)}
+                                        disabled={loading || bulkRunning}
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors disabled:cursor-not-allowed ${uploadMode === mode
+                                            ? 'bg-white text-orange-600 shadow-sm'
+                                            : 'text-zinc-600 hover:text-zinc-900'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
                         <div
                             onDrop={handleDrop}
@@ -718,7 +876,9 @@ const OCRUpload = () => {
                                 id="file-upload"
                                 className="hidden"
                                 accept="image/*,.pdf"
-                                onChange={handleFileSelect}
+                                multiple={uploadMode === 'bulk'}
+                                disabled={bulkRunning}
+                                onChange={uploadMode === 'bulk' ? handleBulkSelect : handleFileSelect}
                             />
                             <label htmlFor="file-upload" className="cursor-pointer">
                                 <div className="flex flex-col items-center gap-3">
@@ -729,16 +889,132 @@ const OCRUpload = () => {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-zinc-900">
-                                            Click to upload or drag and drop
+                                            {uploadMode === 'bulk'
+                                                ? 'Click to select multiple files or drag and drop'
+                                                : 'Click to upload or drag and drop'}
                                         </p>
                                         <p className="text-xs text-zinc-500 mt-1">
-                                            PNG, JPG, GIF, BMP, PDF (max 3MB)
+                                            PNG, JPG, GIF, BMP, PDF (max 3MB{uploadMode === 'bulk' ? ' each' : ''})
                                         </p>
                                     </div>
                                 </div>
                             </label>
                         </div>
 
+                        {uploadMode === 'bulk' ? (
+                            <>
+                                {/* Bulk File List */}
+                                {bulkItems.length > 0 && (
+                                    <div className="mt-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-sm font-medium text-zinc-700">
+                                                {bulkItems.length} file{bulkItems.length !== 1 ? 's' : ''} selected
+                                            </h4>
+                                            <span className="text-xs text-zinc-500">
+                                                {bulkItems.filter((i) => i.status === 'done' || i.status === 'saved').length} extracted
+                                                {' • '}
+                                                {bulkItems.filter((i) => i.status === 'saved').length} saved
+                                            </span>
+                                        </div>
+                                        <ul className="space-y-2 max-h-96 overflow-auto pr-1">
+                                            {bulkItems.map((item) => {
+                                                const viewable = item.status === 'done' || item.status === 'saved';
+                                                return (
+                                                    <li
+                                                        key={item.id}
+                                                        onClick={() => handleViewBulkItem(item)}
+                                                        className={`p-3 rounded-lg border flex items-center gap-3 transition-colors ${item.id === activeBulkId
+                                                            ? 'border-orange-500 bg-orange-50'
+                                                            : 'border-zinc-200 bg-zinc-50'
+                                                            } ${viewable ? 'cursor-pointer hover:border-orange-400' : ''}`}
+                                                        title={viewable ? 'Click to view extracted details' : undefined}
+                                                    >
+                                                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                            {item.status === 'processing' ? (
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
+                                                            ) : (
+                                                                <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-zinc-900 truncate">{item.file.name}</p>
+                                                            <p className={`text-xs truncate ${item.error ? 'text-red-600' : 'text-zinc-500'}`}>
+                                                                {item.error || `${(item.file.size / 1024).toFixed(2)} KB`}
+                                                            </p>
+                                                        </div>
+                                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize flex-shrink-0 ${BULK_STATUS_STYLES[item.status]}`}>
+                                                            {item.status === 'done' ? 'extracted' : item.status}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleRemoveBulkItem(item.id); }}
+                                                            disabled={bulkRunning}
+                                                            className="p-1 hover:bg-zinc-200 rounded transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="Remove"
+                                                        >
+                                                            <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Bulk Action Buttons */}
+                                <div className="mt-6 flex gap-3 flex-wrap">
+                                    <button
+                                        onClick={handleBulkExtract}
+                                        disabled={bulkRunning || !bulkItems.some((i) => i.status === 'pending' || i.status === 'failed')}
+                                        className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {bulkRunning ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                                Processing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                Extract All
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={handleSaveAll}
+                                        disabled={bulkRunning || !bulkItems.some((i) => i.status === 'done')}
+                                        className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Save All
+                                    </button>
+                                    <button
+                                        onClick={handleExportGrantors}
+                                        disabled={bulkRunning || !bulkItems.some((i) => i.status === 'done' || i.status === 'saved')}
+                                        className="px-6 py-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        title="Download the Grantor Details of all extracted files as an Excel sheet"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Export to Excel
+                                    </button>
+                                    <button
+                                        onClick={handleClearBulk}
+                                        disabled={!bulkItems.length || bulkRunning}
+                                        className="px-6 py-3 bg-zinc-100 text-zinc-700 rounded-lg font-medium hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                        <>
                         {/* Selected File Info */}
                         {selectedFile && (
                             <div className="mt-4 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
@@ -814,6 +1090,8 @@ const OCRUpload = () => {
                                 Clear
                             </button>
                         </div>
+                        </>
+                        )}
                     </div>
 
                     {/* Info Card */}
@@ -840,18 +1118,21 @@ const OCRUpload = () => {
                     <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm flex-1 flex flex-col">
                         <div className="mb-4">
                             <h3 className="text-lg font-semibold text-zinc-900">Extracted Text</h3>
-                            <p className="text-sm text-zinc-500 mt-1">Full text content from document</p>
+                            <p className="text-sm text-zinc-500 mt-1 truncate">
+                                {activeBulkId && selectedFile ? selectedFile.name : 'Full text content from document'}
+                            </p>
                         </div>
 
                         {extractedText ? (
                             <div className="flex-1 overflow-auto space-y-4">
                                 {/* Grantor Details */}
-                                {(metadata.grantorName || metadata.grantorNumber || metadata.tqNumber || metadata.grantorAddress || metadata.grantorPostcode || metadata.grantorTelephone || metadata.grantorEmail) && (
+                                {(metadata.grantorName || metadata.grantorNumber || metadata.agreementRef || metadata.tqNumber || metadata.grantorAddress || metadata.grantorPostcode || metadata.grantorTelephone || metadata.grantorEmail) && (
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                         <h4 className="text-sm font-semibold text-blue-900 mb-3">Grantor Details</h4>
                                         <div className="space-y-2 text-sm">
                                             {metadata.grantorName && <div><span className="font-medium text-blue-700">Name:</span> <span className="text-blue-900">{metadata.grantorName}</span></div>}
                                             {metadata.grantorNumber && <div><span className="font-medium text-blue-700">Grantor No:</span> <span className="text-blue-900">{metadata.grantorNumber}</span></div>}
+                                            {metadata.agreementRef && <div><span className="font-medium text-blue-700">Agreement No:</span> <span className="text-blue-900">{metadata.agreementRef}</span></div>}
                                             {metadata.tqNumber && <div><span className="font-medium text-blue-700">TQ/TL Number:</span> <span className="text-blue-900 font-semibold">{metadata.tqNumber}</span></div>}
                                             {metadata.grantorAddress && <div><span className="font-medium text-blue-700">Address:</span> <span className="text-blue-900">{metadata.grantorAddress}</span></div>}
                                             {metadata.grantorPostcode && <div><span className="font-medium text-blue-700">Postcode:</span> <span className="text-blue-900">{metadata.grantorPostcode}</span></div>}
@@ -862,11 +1143,10 @@ const OCRUpload = () => {
                                 )}
 
                                 {/* Agreement Details */}
-                                {(metadata.agreementRef || metadata.agreementDate || metadata.companyWith || metadata.payment || metadata.duration) && (
+                                {(metadata.agreementDate || metadata.companyWith || metadata.payment || metadata.duration) && (
                                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                         <h4 className="text-sm font-semibold text-orange-900 mb-3">Agreement Details</h4>
                                         <div className="space-y-2 text-sm">
-                                            {metadata.agreementRef && <div><span className="font-medium text-orange-700">Agreement No:</span> <span className="text-orange-900">{metadata.agreementRef}</span></div>}
                                             {metadata.agreementDate && <div><span className="font-medium text-orange-700">Date:</span> <span className="text-orange-900">{metadata.agreementDate}</span></div>}
                                             {metadata.companyWith && <div><span className="font-medium text-orange-700">With:</span> <span className="text-orange-900">{metadata.companyWith}</span></div>}
                                             {metadata.payment && <div><span className="font-medium text-orange-700">Payment:</span> <span className="text-orange-900">{metadata.payment}</span></div>}
@@ -896,7 +1176,8 @@ const OCRUpload = () => {
                                 {/* Save Button */}
                                 <button
                                     onClick={handleSave}
-                                    className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                                    disabled={bulkRunning || bulkItems.some((i) => i.id === activeBulkId && i.status === 'saved')}
+                                    className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -911,7 +1192,11 @@ const OCRUpload = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     <p className="text-sm font-medium">No text extracted yet</p>
-                                    <p className="text-xs mt-1">Upload a document to extract text content</p>
+                                    <p className="text-xs mt-1">
+                                        {uploadMode === 'bulk'
+                                            ? 'Extract your files, then click one to view its details'
+                                            : 'Upload a document to extract text content'}
+                                    </p>
                                 </div>
                             </div>
                         )}
@@ -940,11 +1225,12 @@ const OCRUpload = () => {
 
                         <div className="p-6 space-y-4">
                             {/* Grantor Details */}
-                            {(viewingDocument.grantor_name || viewingDocument.tq_number || viewingDocument.grantor_address || viewingDocument.grantor_postcode || viewingDocument.grantor_telephone || viewingDocument.grantor_email) && (
+                            {(viewingDocument.grantor_name || viewingDocument.agreement_ref || viewingDocument.tq_number || viewingDocument.grantor_address || viewingDocument.grantor_postcode || viewingDocument.grantor_telephone || viewingDocument.grantor_email) && (
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                     <h4 className="text-sm font-semibold text-blue-900 mb-3">Grantor Details</h4>
                                     <div className="space-y-2 text-sm">
                                         {viewingDocument.grantor_name && <div><span className="font-medium text-blue-700">Name:</span> <span className="text-blue-900">{viewingDocument.grantor_name}</span></div>}
+                                        {viewingDocument.agreement_ref && <div><span className="font-medium text-blue-700">Agreement No:</span> <span className="text-blue-900">{viewingDocument.agreement_ref}</span></div>}
                                         {viewingDocument.tq_number && <div><span className="font-medium text-blue-700">TQ/TL Number:</span> <span className="text-blue-900 font-semibold">{viewingDocument.tq_number}</span></div>}
                                         {viewingDocument.grantor_address && <div><span className="font-medium text-blue-700">Address:</span> <span className="text-blue-900">{viewingDocument.grantor_address}</span></div>}
                                         {viewingDocument.grantor_postcode && <div><span className="font-medium text-blue-700">Postcode:</span> <span className="text-blue-900">{viewingDocument.grantor_postcode}</span></div>}
@@ -955,11 +1241,10 @@ const OCRUpload = () => {
                             )}
 
                             {/* Agreement Details */}
-                            {(viewingDocument.agreement_ref || viewingDocument.agreement_date || viewingDocument.company_with || viewingDocument.payment || viewingDocument.duration) && (
+                            {(viewingDocument.agreement_date || viewingDocument.company_with || viewingDocument.payment || viewingDocument.duration) && (
                                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                     <h4 className="text-sm font-semibold text-orange-900 mb-3">Agreement Details</h4>
                                     <div className="space-y-2 text-sm">
-                                        {viewingDocument.agreement_ref && <div><span className="font-medium text-orange-700">Agreement No:</span> <span className="text-orange-900">{viewingDocument.agreement_ref}</span></div>}
                                         {viewingDocument.agreement_date && <div><span className="font-medium text-orange-700">Date:</span> <span className="text-orange-900">{viewingDocument.agreement_date}</span></div>}
                                         {viewingDocument.company_with && <div><span className="font-medium text-orange-700">With:</span> <span className="text-orange-900">{viewingDocument.company_with}</span></div>}
                                         {viewingDocument.payment && <div><span className="font-medium text-orange-700">Payment:</span> <span className="text-orange-900">{viewingDocument.payment}</span></div>}
